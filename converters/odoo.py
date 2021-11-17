@@ -21,13 +21,9 @@ converter2odoo = ChainedConverter("toggl2odoo")
 
 class SimpleConverter2Odoo(SimpleConverter):
     def matches(self, entry: TimeEntry) -> bool:
-        return super().matches(entry) and "non-billable" not in entry.tags
+        return super().matches(entry)
 
     def convert(self, entry: TimeEntry) -> TimesheetLine:
-        if "non-billable" in entry.tags:
-            raise PermissionError(
-                f"Converting non-billable entries for Odoo is forbidden: {repr(entry)}"
-            )
         return super().convert(entry)
 
 
@@ -41,7 +37,7 @@ class OdooOnboarding2Odoo(OdooOnboarding, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         line.update(
             project="(PS) INT. TRAINING",
-            task="Training ABT",
+            task="(PS) INT. TRAINING",
             name=f"[functional][onboarding] - {entry.description}",
         )
         return line
@@ -53,7 +49,7 @@ class OdooTraining2Odoo(OdooTraining, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=811,  # "(PS) INT. TRAINING"
-            task="Training ABT",
+            task="(PS) INT. TRAINING",
             name=f"[technical] {entry.description}",
         )
         return line
@@ -65,7 +61,7 @@ class OdooOwndb2Odoo(OdooOwndb, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         line.update(
             project="(PS) INT. TRAINING",
-            task="Training ABT",
+            task="(PS) INT. TRAINING",
             name=f"[technical+functional] owndb: {entry.description}",
         )
         return line
