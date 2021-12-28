@@ -15,6 +15,7 @@ from .odoo_common import (
     extract_task,
 )
 
+from math import ceil
 
 converter2odoo = ChainedConverter("toggl2odoo")
 
@@ -130,5 +131,9 @@ class OdooTask2Odoo(OdooTask, OdooConverter2Odoo):
         description: str
         task_id, _, description = extract_task(entry)
         line.pop("project", None)
-        line.update(task=task_id, name=description)
+        line.update(task=task_id, name=description, unit_amount=OdooTask2Odoo.rounded_amount(line))
         return line
+
+    @staticmethod
+    def rounded_amount(line: TimesheetLine) -> int:
+        return ceil(line.get('unit_amount')*4 - 0.25)/4
