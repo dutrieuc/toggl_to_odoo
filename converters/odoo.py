@@ -14,10 +14,43 @@ from .odoo_common import (
     OdooTask,
     extract_task,
 )
-
+from typing import (
+    TypedDict,
+    Union,
+    MutableMapping,
+    TypeVar,
+    Type,
+    Callable,
+    Optional,
+    Tuple,
+    MutableSequence,
+    List,
+    Sequence,
+    Set,
+    ClassVar,
+    Iterator,
+    Generic,
+)
 from math import ceil
 
-converter2odoo = ChainedConverter("toggl2odoo")
+
+class CustomChainedConverter(ChainedConverter):
+
+    @staticmethod
+    def rounded_amount(line: TimesheetLine) -> int:
+        return ceil( line.get('unit_amount')*4 - 0.25)/4
+
+    @staticmethod
+    def merge(
+        lines: List[TimesheetLine], keys: Optional[Sequence[str]] = None
+    ) -> List[TimesheetLine]:
+        buckets = ChainedConverter.merge(lines, keys)
+        for line in buckets:
+            line["unit_amount"] = CustomChainedConverter.rounded_amount(line)
+        return buckets
+
+
+converter2odoo = CustomChainedConverter("toggl2odoo")
 
 
 class SimpleConverter2Odoo(SimpleConverter):
@@ -131,9 +164,6 @@ class OdooTask2Odoo(OdooTask, OdooConverter2Odoo):
         description: str
         task_id, _, description = extract_task(entry)
         line.pop("project", None)
-        line.update(task=task_id, name=description, unit_amount=OdooTask2Odoo.rounded_amount(line))
+        line.update(task=task_id, name=description)
         return line
 
-    @staticmethod
-    def rounded_amount(line: TimesheetLine) -> int:
-        return ceil(line.get('unit_amount')*4 - 0.25)/4
