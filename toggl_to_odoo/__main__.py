@@ -297,6 +297,7 @@ def main():
             snap_seconds=args.snap or None,
         )
         entries_duration: float = sum(e.duration for e in time_entries)
+        lines_duration: float = False
         logger.info(f"Fetched and processed {len(time_entries)} time entries")
         logger.info(f"Total duration of time entries: {fmt_time(entries_duration)}")
 
@@ -342,6 +343,7 @@ def main():
             for item in items:
                 print(repr(item))
             hrs_workday: float = 7.6
+            entries_duration = lines_duration or entries_duration
             work_days = entries_duration / 60 / 60 / hrs_workday
             time_to_round = (math.ceil(work_days) - work_days) * 60 * 60 * hrs_workday
             print(
