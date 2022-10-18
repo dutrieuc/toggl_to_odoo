@@ -107,7 +107,7 @@ class OdooMisc2Odoo(OdooMisc, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=821,
-            task="(PS) MISC",
+            task=2210840,
         )
         return line
 
