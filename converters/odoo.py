@@ -83,7 +83,7 @@ class OdooTraining2Odoo(OdooTraining, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=811,  # "(PS) INT. TRAINING"
-            task="(PS) INT. TRAINING",
+            task=2210841, # "(PS) INT. TRAINING",
             name=f"[technical] {entry.description}",
         )
         return line
@@ -150,8 +150,8 @@ class OdooMeeting2Odoo(OdooMeeting, OdooConverter2Odoo):
     def convert(self, entry: TimeEntry) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
-            project="(PS) INT. MEETING",
-            task="(PS) INT. MEETING",
+            project=826, #"(PS) INT. MEETING",
+            task=2210847, #"(PS) INT. MEETING",
         )
         return line
 
