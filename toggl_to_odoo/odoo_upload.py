@@ -108,8 +108,9 @@ def odoo_upload_line(
                 f"[DRY RUN] Would create new record in {model} with values {repr(values)}"
             )
             return -1
+        print(f"Created new record in {model} with values {repr(values)}")
         new_id: int = odoo_rpc.create(model, values)
-        print(f"Created new record in {model} with id={new_id}")
+        print(f"Created new record in {model} with id={new_id} and values {repr(values)}")
         refs = refs or []
         assert history is not None
         history.setdefault(model, {})
