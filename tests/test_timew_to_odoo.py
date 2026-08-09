@@ -31,8 +31,8 @@ def make_interval_row(**overrides):
         "id": 1000,
         "start": "20260809T090000Z",
         "end": "20260809T100000Z",
-        "tags": ["Odoo-psbe"],
-        "annotation": "[56012] Investigate mysterious bug",
+        "tags": ["Odoo-psbe", "task:56012"],
+        "annotation": "Investigate mysterious bug",
     }
     row.update(overrides)
     return row
@@ -114,13 +114,15 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
                     id=1001,
                     start="20260809T090000Z",
                     end="20260809T100000Z",
-                    annotation="[56012] Fix accounting module",
+                    tags=["Odoo-psbe", "task:56012"],
+                    annotation="Fix accounting module",
                 ),
                 make_interval_row(
                     id=1002,
                     start="20260809T140000Z",
                     end="20260809T143000Z",
-                    annotation="[56013] Sync meeting",
+                    tags=["Odoo-psbe", "task:56013"],
+                    annotation="Sync meeting",
                 ),
             ]
         )
@@ -169,13 +171,15 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
                     id=2001,
                     start="20260809T080000Z",
                     end="20260809T083000Z",
-                    annotation="[56012] Unit tests",
+                    tags=["Odoo-psbe", "task:56012"],
+                    annotation="Unit tests",
                 ),
                 make_interval_row(
                     id=2002,
                     start="20260809T100000Z",
                     end="20260809T103500Z",
-                    annotation="[56012] Unit tests",
+                    tags=["Odoo-psbe", "task:56012"],
+                    annotation="Unit tests",
                 ),
             ],
             merge=True,
@@ -243,7 +247,7 @@ class OdooConverterTestCase(unittest.TestCase):
         full = {
             "project": "Odoo-whatever",
             "task": "Odoo-whatever",
-            "name": "[56012] Fix accounting module",
+            "name": "Fix accounting module",
             "unit_amount": 1.0,
             "_timew_ids": {1000},
         }
@@ -288,13 +292,18 @@ class OdooConverterTestCase(unittest.TestCase):
 
     def test_improvement_converter(self):
         [line] = self.convert(
-            ["Odoo-improvement"], "[56012] Fix accounting module"
+            ["Odoo-improvement", "task:56012"], "Fix accounting module"
         )
-        self.assert_line(
+        self.assertEqual(
             line,
-            project="(BS) IMPROVEMENT",
-            task=56012,
-            name="Fix accounting module",
+            {
+                "date": datetime(2026, 8, 9).date(),
+                "project": "(BS) IMPROVEMENT",
+                "task": 56012,
+                "name": "Fix accounting module",
+                "unit_amount": 1.0,
+                "_timew_ids": {1000},
+            },
         )
 
     def test_coaching_converter(self):
@@ -325,7 +334,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_task_converter(self):
-        [line] = self.convert(["Odoo-psbe"], "[56012] Fix accounting module")
+        [line] = self.convert(["Odoo-psbe", "task:56012"], "Fix accounting module")
         self.assertEqual(
             line,
             {
@@ -339,7 +348,7 @@ class OdooConverterTestCase(unittest.TestCase):
 
     def test_task_converter_with_several_tags(self):
         [line] = self.convert(
-            ["non-billable", "Odoo-psbe"], "[56012] Fix accounting module"
+            ["non-billable", "Odoo-psbe", "task:56012"], "Fix accounting module"
         )
         self.assertEqual(
             line,
@@ -354,13 +363,14 @@ class OdooConverterTestCase(unittest.TestCase):
 
     def test_competing_odoo_tags_pick_highest_priority(self):
         [line] = self.convert(
-            ["Odoo-onboarding", "Odoo-psbe"], "[56012] Fix accounting module"
+            ["Odoo-onboarding", "Odoo-psbe", "task:56012"],
+            "Fix accounting module",
         )
         # Both tags match, but OdooTask (810) has a higher priority than
         # OdooOnboarding (110), so the task converter is the one that wins.
         self.assertEqual(line["task"], 56012)
 
-    def test_extract_task_raises_on_unmatched_annotation(self):
+    def test_extract_task_raises_without_task_tag(self):
         entry = TimeInterval(
             id=1,
             start=datetime(2026, 8, 9, 9, 0, tzinfo=timezone.utc),
@@ -387,7 +397,7 @@ class OwndbConverterTestCase(unittest.TestCase):
 
     def test_non_billable_tag_overrides_project_tag(self):
         [line] = self.convert(
-            ["Odoo-psbe", "non-billable"], "[56012] Fix accounting module"
+            ["Odoo-psbe", "non-billable"], "Fix accounting module"
         )
         # The "non-billable" tag must win over the "Odoo-psbe" project tag:
         # OdooNonBillable2Owndb (9999) is registered above OdooTask2Owndb
@@ -399,7 +409,7 @@ class OwndbConverterTestCase(unittest.TestCase):
                 "date": datetime(2026, 8, 9).date(),
                 "project": "Odoo 2026",
                 "task": "Non-billable",
-                "name": "[56012] Fix accounting module",
+                "name": "Fix accounting module",
                 "unit_amount": 1.0,
                 "_timew_ids": {1000},
             },
@@ -407,7 +417,7 @@ class OwndbConverterTestCase(unittest.TestCase):
 
     def test_unrelated_extra_tag_keeps_task_converter(self):
         [line] = self.convert(
-            ["Odoo-psbe", "urgent"], "[56012] Fix accounting module"
+            ["Odoo-psbe", "urgent", "task:56012"], "Fix accounting module"
         )
-        self.assertEqual(line["task"], "[56012]")
+        self.assertEqual(line["task"], "56012")
         self.assertEqual(line["name"], "Fix accounting module")

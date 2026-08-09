@@ -1,9 +1,12 @@
 import re
-from typing import Tuple, Optional, Match
+from typing import Match, Optional, Tuple
 
 from timew_to_odoo.timewarrior import TimeInterval
 
 from timew_to_odoo.convert import SimpleConverter
+
+
+TASK_TAG_REGEX = re.compile(r"^task:(?P<task_id>\d+)$")
 
 
 def _has_any_tag(entry: TimeInterval, *tags: str) -> bool:
@@ -64,14 +67,14 @@ class OdooTask(OdooConverter):
         )
 
 
-def extract_task(entry: TimeInterval) -> Tuple[int, Optional[str], str]:
-    match: Match = re.search(
-        r"^\[(?P<task_id>\d+)(?::\s*(?P<task_desc>.*?))?\]\s*(?P<description>.*)",
-        entry.annotation,
-    )
-    if not match:
-        raise ValueError(f"Couldn't extract task info from entry: {repr(entry)}")
-    task_id: int = int(match.group("task_id"))
-    task_desc: Optional[str] = match.group("task_desc") or None
-    description: str = match.group("description")
-    return task_id, task_desc, description
+def extract_task(entry: TimeInterval) -> Tuple[int, str]:
+    """Return the Odoo task id carried by the ``task:XXXXX`` tag and the
+    interval description (its annotation).
+
+    Raises ``ValueError`` if no ``task:`` tag holds a numeric id.
+    """
+    for tag in entry.tags:
+        match: Optional[Match] = TASK_TAG_REGEX.match(tag)
+        if match:
+            return int(match.group("task_id")), entry.annotation
+    raise ValueError(f"Couldn't extract task info from entry: {repr(entry)}")

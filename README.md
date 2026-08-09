@@ -17,12 +17,12 @@
 
 Timewarrior projects are stored as *tags* of the same name, and the task
 description is stored as the interval *annotation*. Using the suggested
-converters, entries should be tracked with the relevant `Odoo-*` tag and an
-annotation in the format `[odoo task id] title` for tasks filed under
+converters, entries should be tracked with the relevant `Odoo-*` tag, plus a
+`task:XXXXX` tag carrying the Odoo task id for tasks filed under
 "Odoo-psbe" or "Odoo-maintenance":
 ```sh
-timew start Odoo-psbe
-timew annotate '[56012] Fix accounting module'
+timew start Odoo-psbe task:56012
+timew annotate 'Fix accounting module'
 timew stop
 ```
 

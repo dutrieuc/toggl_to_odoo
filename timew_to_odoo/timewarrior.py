@@ -8,6 +8,7 @@ Mapping to the old Toggl model:
 
 -  Toggl ``project`` -> a Timewarrior ``tag`` of the same name
    (e.g. ``Odoo-psbe``).
+-  The Odoo task id -> a ``task:XXXXX`` tag (e.g. ``task:56012``).
 -  Toggl time entry ``name``/``description`` -> the Timewarrior
    ``annotation``.
 """

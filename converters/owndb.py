@@ -1,5 +1,3 @@
-from typing import Optional
-
 from timew_to_odoo.timewarrior import TimeInterval
 
 from timew_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
@@ -104,13 +102,9 @@ class OdooTask2Owndb(OdooTask, OdooConverter2Owndb):
     def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         task_id: int
-        task_desc: Optional[str]
         description: str
-        task_id, task_desc, description = extract_task(entry)
-        line.update(
-            task=f"[{task_id}]" + (f" {task_desc}" if task_desc else ""),
-            name=description,
-        )
+        task_id, description = extract_task(entry)
+        line.update(task=task_id, name=description)
         return line
 
 

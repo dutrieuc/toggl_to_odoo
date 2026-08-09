@@ -22,7 +22,7 @@ class TimeIntervalTestCase(unittest.TestCase):
             start=DT0,
             end=datetime(2026, 8, 9, 10, 0, 0, tzinfo=timezone.utc),
             tags=("Odoo-psbe", "urgent"),
-            annotation="[56012] Fix accounting module",
+            annotation="Fix accounting module",
         )
         self.assertEqual(interval.duration, 3600.0)
         self.assertEqual(interval.tags, ["Odoo-psbe", "urgent"])

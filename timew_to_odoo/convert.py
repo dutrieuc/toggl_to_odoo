@@ -224,7 +224,7 @@ get_converter = ChainedConverter.get_converter
 # Odoo misc
 
 
-# Extract task-like entry formatted like: "[task_id: task_name] description"
+# Extract the Odoo task id from a "task:XXXXX" tag
 
 
 # Odoo improvement

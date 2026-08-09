@@ -118,7 +118,7 @@ class OdooImprovement2Odoo(OdooImprovement, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         task_id: int
         description: str
-        task_id, _, description = extract_task(entry)
+        task_id, description = extract_task(entry)
         line.update(project="(BS) IMPROVEMENT", task=task_id, name=description)
         return line
 
@@ -162,7 +162,7 @@ class OdooTask2Odoo(OdooTask, OdooConverter2Odoo):
         line: TimesheetLine = super().convert(entry)
         task_id: int
         description: str
-        task_id, _, description = extract_task(entry)
+        task_id, description = extract_task(entry)
         line.pop("project", None)
         line.update(task=task_id, name=description)
         return line

@@ -22,8 +22,8 @@ INTERVAL = TimeInterval(
     id=1000,
     start=datetime(2026, 8, 9, 9, 0, 0, tzinfo=timezone.utc),
     end=datetime(2026, 8, 9, 10, 0, 0, tzinfo=timezone.utc),
-    tags=["Odoo-psbe"],
-    annotation="[56012] Fix accounting module",
+    tags=["Odoo-psbe", "task:56012"],
+    annotation="Fix accounting module",
 )
 
 
