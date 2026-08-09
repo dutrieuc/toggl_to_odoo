@@ -1,0 +1,8 @@
+[run]
+source = toggl_to_odoo, converters
+omit = converters/owndb.py
+branch = True
+
+[report]
+show_missing = True
+skip_covered = True

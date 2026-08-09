@@ -48,3 +48,12 @@ is required:
 ```sh
 python3 -m unittest discover -t .
 ```
+
+A coverage report is generated alongside the test run (install the dev
+dependencies first: `pip3 install -r requirements-dev.txt`):
+
+```sh
+coverage run -m unittest discover -t .
+coverage report        # terminal summary
+coverage html          # browseable report in htmlcov/
+```

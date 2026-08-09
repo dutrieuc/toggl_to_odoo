@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from unittest import mock
 
 from converters.odoo import CustomChainedConverter, OdooTask2Odoo, converter2odoo
+from converters.odoo_common import extract_task
 from converters.owndb import converter2owndb
 from toggl_to_odoo import odoo_upload as upload_module
 from toggl_to_odoo.processing import fetch_and_process
+from toggl_to_odoo.timewarrior import TimeInterval
 
 from .fakes import FakeOdooXmlRpc, FakeShelf
 
@@ -357,6 +359,17 @@ class OdooConverterTestCase(unittest.TestCase):
         # Both tags match, but OdooTask (810) has a higher priority than
         # OdooOnboarding (110), so the task converter is the one that wins.
         self.assertEqual(line["task"], 56012)
+
+    def test_extract_task_raises_on_unmatched_annotation(self):
+        entry = TimeInterval(
+            id=1,
+            start=datetime(2026, 8, 9, 9, 0, tzinfo=timezone.utc),
+            end=datetime(2026, 8, 9, 10, 0, tzinfo=timezone.utc),
+            tags=["Odoo-psbe"],
+            annotation="Fix accounting module",
+        )
+        with self.assertRaises(ValueError):
+            extract_task(entry)
 
 
 class OwndbConverterTestCase(unittest.TestCase):
