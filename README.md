@@ -32,3 +32,14 @@ To run the synchronization, run :
 python3 -m toggl_to_odoo upload toggl2odoo https://www.odoo.com openerp history
 ```
 
+## Testing
+
+The upload pipeline is tested end-to-end with mocks for both the Toggl API
+(the report payloads the API would return are fed straight into the normal
+deserialization code) and the Odoo XML-RPC server (an in-memory fake). No
+network or configuration is required:
+
+```sh
+python3 -m unittest discover -t .
+```
+

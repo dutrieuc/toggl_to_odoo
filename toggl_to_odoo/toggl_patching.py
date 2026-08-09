@@ -357,6 +357,38 @@ class BetterTimeEntrySet(TimeEntrySet):
 
             page += 1
 
+    def _deserialize_from_reports(self, config, entity_dict, wid):
+        """
+        Deserialize a detailed-report row into a TimeEntry.
+
+        The ``pid``/``tid`` report keys have been renamed over togglcli
+        releases (``project_id``/``task_id`` since v4), so expose both
+        spellings and let the installed version map the one it knows about.
+        """
+        project_id: Optional[int] = entity_dict.get(
+            "pid", entity_dict.get("project_id")
+        )
+        task_id: Optional[int] = entity_dict.get("tid", entity_dict.get("task_id"))
+        user_id: Optional[int] = entity_dict.get("uid", entity_dict.get("user_id"))
+
+        entity: MutableMapping[str, Any] = {
+            "id": entity_dict["id"],
+            "start": entity_dict["start"],
+            "stop": entity_dict["end"],
+            "duration": entity_dict["dur"] / 1000,
+            "description": entity_dict["description"],
+            "tags": entity_dict["tags"],
+            "billable": entity_dict["billable"],
+            "pid": project_id,
+            "project_id": project_id,
+            "tid": task_id,
+            "task_id": task_id,
+            "uid": user_id,
+            "wid": wid,
+            "workspace_id": wid,
+        }
+        return self.entity_cls.deserialize(config=config, **entity)
+
 
 class BetterTimeEntry(TimeEntry):
     objects = BetterTimeEntrySet()
