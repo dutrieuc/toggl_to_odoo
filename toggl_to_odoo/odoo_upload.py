@@ -182,7 +182,7 @@ def odoo_upload_line(
             name=line["name"],
             unit_amount=line["unit_amount"],
         ),
-        refs=line["_toggl_ids"],
+        refs=line["_timew_ids"],
     )
     return new_ts_line_id
 
@@ -258,9 +258,9 @@ def odoo_upload(
     for line in timesheet_lines:
         try:
             if history is not None:
-                if not line.get("_toggl_ids"):
-                    raise ConstraintError('Timesheet line without "_toggl_ids"!')
-                line_refs: Set[int] = line["_toggl_ids"]
+                if not line.get("_timew_ids"):
+                    raise ConstraintError('Timesheet line without "_timew_ids"!')
+                line_refs: Set[int] = line["_timew_ids"]
                 model_name: str = "account.analytic.line"
                 stored_refs: Set[int] = match_history_refs(
                     history, model_name, line_refs

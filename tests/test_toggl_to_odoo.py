@@ -1,129 +1,71 @@
-"""End-to-end tests: upload Toggl time entries to Odoo.
+"""End-to-end tests: upload Timewarrior intervals to Odoo.
 
-The Toggl API is fully mocked: instead of a network call, the tests feed the
-same report payloads the real API would return and let the normal
-deserialization convert them into ``TimeEntry`` objects. The Odoo side is
-replaced by an in-memory fake.
+The Timewarrior CLI is fully mocked: instead of running ``timew export``, the
+tests feed the same JSON payload the real command would print and let the
+normal deserialization convert them into ``TimeInterval`` objects. The Odoo
+side is replaced by an in-memory fake.
 """
 
-import logging
+import json
 import unittest
-from datetime import datetime
+import types
+from datetime import datetime, timezone
 from unittest import mock
 
-from toggl import utils
-from toggl.api import Client, Project, Workspace
-
 from converters.odoo import CustomChainedConverter, OdooTask2Odoo, converter2odoo
+from converters.owndb import converter2owndb
 from toggl_to_odoo import odoo_upload as upload_module
 from toggl_to_odoo.processing import fetch_and_process
 
 from .fakes import FakeOdooXmlRpc, FakeShelf
 
-# The toggl library warns every time a class attribute of its ``Config`` is
-# modified, which is exactly what ``mock.patch`` does in the tests below.
-logging.getLogger("toggl.utils.metas").setLevel(logging.CRITICAL)
+FROM = datetime(2026, 8, 9, tzinfo=timezone.utc)
+TO = datetime(2026, 8, 9, 23, 59, 59, tzinfo=timezone.utc)
 
 
-def make_client():
-    """Return an Odoo client object with a stable id."""
-    client = Client(name="Odoo")
-    client.id = 2
-    return client
-
-
-def make_project(name, client=None):
-    """Create a project in the fake client, resolving ``project.client``."""
-    if client is None:
-        client = make_client()
-    project = Project(name=name)
-    project.id = 1
-    project.client_id = client.id
-    return project
-
-
-def make_toggl_config():
-    """Return a Toggl config pointing at the fake workspace, no disk access."""
-    cfg = utils.Config.factory(None)
-    workspace = Workspace(name="Test workspace")
-    workspace.id = 1
-    cfg._default_workspace = workspace
-    cfg.tz = "UTC"
-    return cfg
-
-
-def make_entry_row(**overrides):
-    """Build one report row exactly as returned by the Toggl detailed report."""
+def make_interval_row(**overrides):
+    """Build one export row exactly as returned by ``timew export``."""
     row = {
         "id": 1000,
-        "pid": 1,
-        "tid": 10,
-        "uid": 7,
-        "wid": 1,
-        "billable": False,
-        "description": "[56012] Investigate mysterious bug",
-        "tags": [],
-        "dur": 3600000,
-        "start": "2026-08-09T09:00:00+00:00",
-        "end": "2026-08-09T10:00:00+00:00",
+        "start": "20260809T090000Z",
+        "end": "20260809T100000Z",
+        "tags": ["Odoo-psbe"],
+        "annotation": "[56012] Investigate mysterious bug",
     }
     row.update(overrides)
     return row
 
 
-class FakeTogglApi:
-    """In-memory stand-in for the Toggl detailed report endpoint."""
+class FakeTimewCli:
+    """In-memory stand-in for the ``timew export`` command."""
 
     def __init__(self, rows):
         self.rows = list(rows)
-        self.requests = []
 
-    def request(
-        self, url, method="get", data=None, headers=None, config=None, address=None
-    ):
-        if method != "get":
-            raise AssertionError(f"Unexpected Toggl HTTP method: {method}")
-        self.requests.append((url, address))
-        return {
-            "data": self.rows,
-            "per_page": 100,
-            "total_count": len(self.rows),
-        }
+    def __call__(self, *args, **kwargs):
+        return types.SimpleNamespace(stdout=json.dumps(self.rows))
 
 
-class MockedTogglApi:
-    """Context manager wiring the Toggl-dependent code to a faked API.
+class MockedTimewCli:
+    """Context manager wiring the timewarrior code to a faked CLI output."""
 
-    Patches the network call performed by ``report_detailed`` as well as the
-    entity lookups a converter performs while reading ``entry.project`` and
-    ``entry.project.client``.
-    """
-
-    def __init__(self, api, config, project, client):
-        self.api = api
-        self.config = config
-        self.project = project
-        self.client = client
-        self._patchers = []
+    def __init__(self, rows):
+        self.rows = rows
+        self._patcher = mock.patch(
+            "toggl_to_odoo.timewarrior.subprocess.run",
+            side_effect=FakeTimewCli(self.rows),
+        )
 
     def __enter__(self):
-        self._patchers = [
-            mock.patch.object(utils.Config, "factory", return_value=self.config),
-            mock.patch.object(utils, "toggl", side_effect=self.api.request),
-            mock.patch.object(Project.objects, "get", return_value=self.project),
-            mock.patch.object(Client.objects, "get", return_value=self.client),
-        ]
-        for patcher in self._patchers:
-            patcher.start()
+        self._patcher.start()
         return self
 
     def __exit__(self, exc_type, exc, traceback):
-        for patcher in reversed(self._patchers):
-            patcher.stop()
+        self._patcher.stop()
         return False
 
 
-class TogglToOdooUploadTestCase(unittest.TestCase):
+class TimewToOdooUploadTestCase(unittest.TestCase):
     def setUp(self):
         self.fake_odoo = FakeOdooXmlRpc()
         self.fake_odoo.add("project.project", {"id": 1, "name": "Odoo-psbe"})
@@ -135,10 +77,6 @@ class TogglToOdooUploadTestCase(unittest.TestCase):
         )
         self.history = FakeShelf()
         self.history["_refs"] = {}
-
-        self.config = make_toggl_config()
-        self.client = make_client()
-        self.project = make_project("Odoo-psbe", client=self.client)
 
         self.converter = CustomChainedConverter(f"tests.{self._testMethodName}")
         self.converter.register(1)(OdooTask2Odoo)
@@ -160,36 +98,31 @@ class TogglToOdooUploadTestCase(unittest.TestCase):
             )
 
     def fetch_and_convert(self, rows, merge=False):
-        api = FakeTogglApi(rows)
-        with MockedTogglApi(api, self.config, self.project, self.client):
-            entries = fetch_and_process(
-                since=datetime(2026, 8, 9), until=datetime(2026, 8, 9)
-            )
-            lines = self.converter.convert(entries, merge=merge)
-        return api, entries, lines
+        with MockedTimewCli(rows):
+            intervals = fetch_and_process(since=FROM, until=TO)
+            lines = self.converter.convert(intervals, merge=merge)
+        return intervals, lines
 
     # -- tests --------------------------------------------------------------
 
-    def test_upload_mocked_toggl_entries(self):
-        _, entries, lines = self.fetch_and_convert(
+    def test_upload_mocked_timewarrior_entries(self):
+        intervals, lines = self.fetch_and_convert(
             [
-                make_entry_row(
+                make_interval_row(
                     id=1001,
-                    dur=3600000,
-                    start="2026-08-09T09:00:00+00:00",
-                    end="2026-08-09T10:00:00+00:00",
-                    description="[56012] Fix accounting module",
+                    start="20260809T090000Z",
+                    end="20260809T100000Z",
+                    annotation="[56012] Fix accounting module",
                 ),
-                make_entry_row(
+                make_interval_row(
                     id=1002,
-                    dur=1800000,
-                    start="2026-08-09T14:00:00+00:00",
-                    end="2026-08-09T14:30:00+00:00",
-                    description="[56013] Sync meeting",
+                    start="20260809T140000Z",
+                    end="20260809T143000Z",
+                    annotation="[56013] Sync meeting",
                 ),
             ]
         )
-        self.assertEqual([entry.id for entry in entries], [1001, 1002])
+        self.assertEqual([e.id for e in intervals], [1001, 1002])
         self.assertEqual(len(lines), 2)
 
         self.upload(lines)
@@ -218,7 +151,7 @@ class TogglToOdooUploadTestCase(unittest.TestCase):
         )
 
     def test_upload_is_idempotent_across_runs(self):
-        _, _, lines = self.fetch_and_convert([make_entry_row()])
+        _, lines = self.fetch_and_convert([make_interval_row()])
         self.upload(lines)
         self.upload(lines)
         analytics = self.fake_odoo.records["account.analytic.line"]
@@ -228,28 +161,26 @@ class TogglToOdooUploadTestCase(unittest.TestCase):
         )
 
     def test_upload_merges_matching_entries(self):
-        _, entries, lines = self.fetch_and_convert(
+        _, lines = self.fetch_and_convert(
             [
-                make_entry_row(
+                make_interval_row(
                     id=2001,
-                    dur=1800000,
-                    start="2026-08-09T08:00:00+00:00",
-                    end="2026-08-09T08:30:00+00:00",
-                    description="[56012] Unit tests",
+                    start="20260809T080000Z",
+                    end="20260809T083000Z",
+                    annotation="[56012] Unit tests",
                 ),
-                make_entry_row(
+                make_interval_row(
                     id=2002,
-                    dur=2160000,
-                    start="2026-08-09T10:00:00+00:00",
-                    end="2026-08-09T10:35:00+00:00",
-                    description="[56012] Unit tests",
+                    start="20260809T100000Z",
+                    end="20260809T103500Z",
+                    annotation="[56012] Unit tests",
                 ),
             ],
             merge=True,
         )
         self.assertEqual(len(lines), 1)
         self.assertEqual(lines[0]["unit_amount"], 1.25)
-        self.assertEqual(lines[0]["_toggl_ids"], {2001, 2002})
+        self.assertEqual(lines[0]["_timew_ids"], {2001, 2002})
 
         self.upload(lines)
         analytics = self.fake_odoo.records["account.analytic.line"]
@@ -263,34 +194,45 @@ class TogglToOdooUploadTestCase(unittest.TestCase):
             },
         )
 
-def test_twice_removed_entry_leaves_history_untouched(self):
-        _, _, lines = self.fetch_and_convert([make_entry_row()])
+    def test_removed_entry_leaves_history_untouched(self):
+        _, lines = self.fetch_and_convert([make_interval_row()])
         self.upload(lines)
         # Second fetch no longer contains the entry -> nothing to do.
-        _, _, lines = self.fetch_and_convert([])
+        _, lines = self.fetch_and_convert([])
         self.assertEqual(lines, [])
         self.assertEqual(
             self.history["_refs"], {("account.analytic.line", 1000): 1}
         )
 
+    def test_fetch_filters_intervals_by_any_tag(self):
+        rows = [
+            make_interval_row(id=2001, tags=["Odoo-psbe", "non-billable"]),
+            make_interval_row(id=2002, tags=["Odoo-psbe", "urgent"]),
+            make_interval_row(id=2003, tags=["Odoo-misc"]),
+        ]
+        with MockedTimewCli(rows):
+            included = fetch_and_process(
+                since=FROM, until=TO, tags_include=["Odoo-psbe"]
+            )
+            self.assertEqual([e.id for e in included], [2001, 2002])
+            excluded = fetch_and_process(
+                since=FROM, until=TO, tags_exclude=["non-billable"]
+            )
+            self.assertEqual([e.id for e in excluded], [2002, 2003])
+
 
 class OdooConverterTestCase(unittest.TestCase):
-    """Each converter registered in ``converters/odoo.py`` maps the toggl entry
-    described in its name to a ``TimesheetLine``; one test per converter."""
+    """Each converter registered in ``converters/odoo.py`` maps the timewarrior
+    interval described in its name to a ``TimesheetLine``; one test per
+    converter."""
 
-    def setUp(self):
-        self.config = make_toggl_config()
-
-    def convert(self, project_name, project_id, description, **row_overrides):
-        client = make_client()
-        project = make_project(project_name, client=client)
-        project.id = project_id
-        api = FakeTogglApi([make_entry_row(description=description, **row_overrides)])
-        with MockedTogglApi(api, self.config, project, client):
-            entries = fetch_and_process(
-                since=datetime(2026, 8, 9), until=datetime(2026, 8, 9)
-            )
-            return converter2odoo.convert(entries)
+    def convert(self, tags, description, **row_overrides):
+        rows = [
+            make_interval_row(tags=tags, annotation=description, **row_overrides)
+        ]
+        with MockedTimewCli(rows):
+            intervals = fetch_and_process(since=FROM, until=TO)
+            return converter2odoo.convert(intervals)
 
     def assert_line(self, line, **expected):
         line_dict = dict(line)
@@ -301,13 +243,13 @@ class OdooConverterTestCase(unittest.TestCase):
             "task": "Odoo-whatever",
             "name": "[56012] Fix accounting module",
             "unit_amount": 1.0,
-            "_toggl_ids": {1000},
+            "_timew_ids": {1000},
         }
         full.update(expected)
         self.assertEqual(line_dict, full)
 
     def test_onboarding(self):
-        [line] = self.convert("Odoo-onboarding", 1, "Welcome to Odoo")
+        [line] = self.convert(["Odoo-onboarding"], "Welcome to Odoo")
         self.assert_line(
             line,
             project="(PS) INT. TRAINING",
@@ -316,7 +258,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_training_converter(self):
-        [line] = self.convert("Odoo-training", 1, "Docker deep dive")
+        [line] = self.convert(["Odoo-training"], "Docker deep dive")
         self.assert_line(
             line,
             project=12335,
@@ -325,7 +267,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_owndb_converter(self):
-        [line] = self.convert("Odoo-owndb", 1, "Upgrade server")
+        [line] = self.convert(["Odoo-owndb"], "Upgrade server")
         self.assert_line(
             line,
             project="(PS) INT. TRAINING",
@@ -334,7 +276,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_misc_converter(self):
-        [line] = self.convert("Odoo-misc", 1, "Order a laptop")
+        [line] = self.convert(["Odoo-misc"], "Order a laptop")
         self.assert_line(
             line,
             project=12337,
@@ -344,7 +286,7 @@ class OdooConverterTestCase(unittest.TestCase):
 
     def test_improvement_converter(self):
         [line] = self.convert(
-            "Odoo-improvement", 1, "[56012] Fix accounting module"
+            ["Odoo-improvement"], "[56012] Fix accounting module"
         )
         self.assert_line(
             line,
@@ -354,7 +296,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_coaching_converter(self):
-        [line] = self.convert("Odoo-coaching", 1, "1:1 with Odoo")
+        [line] = self.convert(["Odoo-coaching"], "1:1 with Odoo")
         self.assert_line(
             line,
             project="(BS) COACHING",
@@ -363,7 +305,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_review_converter(self):
-        [line] = self.convert("Odoo-review", 1, "review pos PR")
+        [line] = self.convert(["Odoo-review"], "review pos PR")
         self.assert_line(
             line,
             project=853,
@@ -372,7 +314,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_meeting_converter(self):
-        [line] = self.convert("Odoo-meeting", 1, "sync with PS team")
+        [line] = self.convert(["Odoo-meeting"], "sync with PS team")
         self.assert_line(
             line,
             project=12336,
@@ -381,7 +323,7 @@ class OdooConverterTestCase(unittest.TestCase):
         )
 
     def test_task_converter(self):
-        [line] = self.convert("Odoo-psbe", 1, "[56012] Fix accounting module")
+        [line] = self.convert(["Odoo-psbe"], "[56012] Fix accounting module")
         self.assertEqual(
             line,
             {
@@ -389,6 +331,70 @@ class OdooConverterTestCase(unittest.TestCase):
                 "task": 56012,
                 "name": "Fix accounting module",
                 "unit_amount": 1.0,
-                "_toggl_ids": {1000},
+                "_timew_ids": {1000},
             },
         )
+
+    def test_task_converter_with_several_tags(self):
+        [line] = self.convert(
+            ["non-billable", "Odoo-psbe"], "[56012] Fix accounting module"
+        )
+        self.assertEqual(
+            line,
+            {
+                "date": datetime(2026, 8, 9).date(),
+                "task": 56012,
+                "name": "Fix accounting module",
+                "unit_amount": 1.0,
+                "_timew_ids": {1000},
+            },
+        )
+
+    def test_competing_odoo_tags_pick_highest_priority(self):
+        [line] = self.convert(
+            ["Odoo-onboarding", "Odoo-psbe"], "[56012] Fix accounting module"
+        )
+        # Both tags match, but OdooTask (810) has a higher priority than
+        # OdooOnboarding (110), so the task converter is the one that wins.
+        self.assertEqual(line["task"], 56012)
+
+
+class OwndbConverterTestCase(unittest.TestCase):
+    """Converter dispatch on the ``toggl2owndb`` chain: with several tags an
+    interval may match multiple converters, and the highest-priority match
+    must win."""
+
+    def convert(self, tags, description, **row_overrides):
+        rows = [
+            make_interval_row(tags=tags, annotation=description, **row_overrides)
+        ]
+        with MockedTimewCli(rows):
+            intervals = fetch_and_process(since=FROM, until=TO)
+            return converter2owndb.convert(intervals)
+
+    def test_non_billable_tag_overrides_project_tag(self):
+        [line] = self.convert(
+            ["Odoo-psbe", "non-billable"], "[56012] Fix accounting module"
+        )
+        # The "non-billable" tag must win over the "Odoo-psbe" project tag:
+        # OdooNonBillable2Owndb (9999) is registered above OdooTask2Owndb
+        # (810). The line is posted to the Non-billable task with the raw
+        # annotation, without extracting an Odoo task id from it.
+        self.assertEqual(
+            line,
+            {
+                "date": datetime(2026, 8, 9).date(),
+                "project": "Odoo 2026",
+                "task": "Non-billable",
+                "name": "[56012] Fix accounting module",
+                "unit_amount": 1.0,
+                "_timew_ids": {1000},
+            },
+        )
+
+    def test_unrelated_extra_tag_keeps_task_converter(self):
+        [line] = self.convert(
+            ["Odoo-psbe", "urgent"], "[56012] Fix accounting module"
+        )
+        self.assertEqual(line["task"], "[56012]")
+        self.assertEqual(line["name"], "Fix accounting module")

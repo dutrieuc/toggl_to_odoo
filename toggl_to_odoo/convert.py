@@ -19,8 +19,7 @@ from typing import (
     Generic,
 )
 
-from toggl.api import TimeEntry
-
+from .timewarrior import TimeInterval
 from .utils import ValueOrCollection
 
 
@@ -43,16 +42,16 @@ class TimesheetLine(TypedDict, total=False):
     task: Union[str, int]
     name: str
     unit_amount: float
-    _toggl_ids: Set[int]
+    _timew_ids: Set[int]
 
 
 class EntryConverterBase(ABC):
     @abstractmethod
-    def matches(self, entry: TimeEntry) -> bool:
+    def matches(self, entry: TimeInterval) -> bool:
         ...
 
     @abstractmethod
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         ...
 
 
@@ -63,7 +62,7 @@ class SimpleConverter(EntryConverterBase):
         self.datetime_middle: bool = datetime_middle
         self.nightly_cutoff: Optional[float] = nightly_cutoff
 
-    def extract_date(self, entry: TimeEntry) -> date:
+    def extract_date(self, entry: TimeInterval) -> date:
         entry_dt: datetime = entry.start
         if self.datetime_middle:
             entry_dt += timedelta(seconds=entry.duration) / 2
@@ -71,16 +70,15 @@ class SimpleConverter(EntryConverterBase):
             entry_dt -= timedelta(hours=self.nightly_cutoff)
         return entry_dt.date()
 
-    def matches(self, entry: TimeEntry) -> bool:
+    def matches(self, entry: TimeInterval) -> bool:
         return True
 
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = TimesheetLine(
             date=self.extract_date(entry),
-            project=entry.project.name,
-            name=entry.description,
+            name=entry.annotation,
             unit_amount=entry.duration / 3600,
-            _toggl_ids={entry.id},
+            _timew_ids={entry.id},
         )
         return line
 
@@ -135,7 +133,7 @@ class ChainedConverter(Generic[_CT]):
 
     def _convert_one(
         self,
-        entry: TimeEntry,
+        entry: TimeInterval,
         converters: Optional[MutableSequence[_CT]] = None,
         must_match: bool = True,
         **converter_kwargs,
@@ -166,19 +164,19 @@ class ChainedConverter(Generic[_CT]):
                 buckets[key] = line.copy()
             else:
                 bucket_line["unit_amount"] += line["unit_amount"]
-                bucket_line["_toggl_ids"] |= line["_toggl_ids"]
+                bucket_line["_timew_ids"] |= line["_timew_ids"]
         return list(buckets.values())
 
     def convert_iter(
         self,
-        entries: ValueOrCollection[TimeEntry],
+        entries: ValueOrCollection[TimeInterval],
         must_match: bool = True,
         **converter_kwargs,
     ) -> Iterator[TimesheetLine]:
-        if isinstance(entries, TimeEntry):
+        if isinstance(entries, TimeInterval):
             entries = [entries]
         converters: List[_CT] = self._build_converters(**converter_kwargs)
-        entry: TimeEntry
+        entry: TimeInterval
         for entry in entries:
             line: Optional[TimesheetLine] = self._convert_one(
                 entry, converters=converters, must_match=must_match
@@ -188,7 +186,7 @@ class ChainedConverter(Generic[_CT]):
 
     def convert(
         self,
-        entries: ValueOrCollection[TimeEntry],
+        entries: ValueOrCollection[TimeInterval],
         must_match: bool = True,
         merge: bool = False,
         merge_keys: Optional[Sequence[str]] = None,

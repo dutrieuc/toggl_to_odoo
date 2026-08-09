@@ -1,6 +1,6 @@
 # toggl_to_odoo
 
-**toggle_to_odoo** is a tool to synchronize entries from **Toggl Track** to timesheets in an **Odoo** database
+**toggl_to_odoo** is a tool to synchronize entries from **Timewarrior** to timesheets in an **Odoo** database
 
 ## Setup
 
@@ -11,17 +11,23 @@
    ```sh
    pip3 install -r requirements.txt
    ```
-- [Setup Toggl CLI config](https://toggl.uhlir.dev/#configuration)
-- Adapt converters for your use, [these converters](https://github.com/andreabak/toggl_to_odoo/tree/odoo-abk-converters/converters) are a good place to start
+- Install [Timewarrior](https://timewarrior.net/) (the `timew` binary must be on your `PATH`)
 
-###### Toggl side
+###### Timewarrior side
 
-If using the suggested converters, you will need to define several Toggl projects and add them to an "Odoo" client under Toggl.  
-Tasks should be in the format `[odoo task id] title` and filed under a project named "Odoo-psbe" or "Odoo-maintenance"
+Timewarrior projects are stored as *tags* of the same name, and the task
+description is stored as the interval *annotation*. Using the suggested
+converters, entries should be tracked with the relevant `Odoo-*` tag and an
+annotation in the format `[odoo task id] title` for tasks filed under
+"Odoo-psbe" or "Odoo-maintenance":
+```sh
+timew start Odoo-psbe
+timew annotate '[56012] Fix accounting module'
+timew stop
+```
 
-
-Look into [converters/odoo_common.py](converters/odoo_common.py) to get an idea of the others projects you need.  
-For exemple *Misc* entries have to be filed under "Odoo-misc"
+Look into [converters/odoo_common.py](converters/odoo_common.py) to get an idea of the other tags you need.  
+For example *Misc* entries have to be tagged with "Odoo-misc".
 
 ## Guide
 
@@ -34,12 +40,11 @@ python3 -m toggl_to_odoo upload toggl2odoo https://www.odoo.com openerp history
 
 ## Testing
 
-The upload pipeline is tested end-to-end with mocks for both the Toggl API
-(the report payloads the API would return are fed straight into the normal
-deserialization code) and the Odoo XML-RPC server (an in-memory fake). No
-network or configuration is required:
+The upload pipeline is tested end-to-end with mocks: the `timew export` output
+payload is fed straight into the normal deserialization code, and the Odoo
+XML-RPC server is replaced by an in-memory fake. No network or configuration
+is required:
 
 ```sh
 python3 -m unittest discover -t .
 ```
-

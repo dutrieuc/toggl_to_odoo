@@ -1,8 +1,8 @@
 """Shared in-memory fakes used by the test-suite.
 
-These fakes stand in for the external services (Toggl's API and an Odoo
-XML-RPC database) so that the upload code can be exercised end-to-end
-without any network access.
+These fakes stand in for the external services (Timewarrior's ``timew`` CLI
+and an Odoo XML-RPC database) so that the upload code can be exercised
+end-to-end without any network access.
 """
 
 

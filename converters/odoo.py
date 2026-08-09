@@ -1,4 +1,4 @@
-from toggl.api import TimeEntry
+from toggl_to_odoo.timewarrior import TimeInterval
 
 from toggl_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
 from .odoo_common import (
@@ -54,10 +54,10 @@ converter2odoo = CustomChainedConverter("toggl2odoo")
 
 
 class SimpleConverter2Odoo(SimpleConverter):
-    def matches(self, entry: TimeEntry) -> bool:
+    def matches(self, entry: TimeInterval) -> bool:
         return super().matches(entry)
 
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         return super().convert(entry)
 
 
@@ -67,43 +67,43 @@ class OdooConverter2Odoo(SimpleConverter2Odoo, OdooConverter):
 
 @converter2odoo.register(110)
 class OdooOnboarding2Odoo(OdooOnboarding, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project="(PS) INT. TRAINING",
             task="(PS) INT. TRAINING",
-            name=f"[functional][onboarding] - {entry.description}",
+            name=f"[functional][onboarding] - {entry.annotation}",
         )
         return line
 
 
 @converter2odoo.register(120)
 class OdooTraining2Odoo(OdooTraining, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=12335,  # "(BS) SELF TRAINING"
             task=3901684, # "(BS) TRAINING",
-            name=f"[technical] {entry.description}",
+            name=f"[technical] {entry.annotation}",
         )
         return line
 
 
 @converter2odoo.register(180)
 class OdooOwndb2Odoo(OdooOwndb, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project="(PS) INT. TRAINING",
             task="(PS) INT. TRAINING",
-            name=f"[technical+functional] owndb: {entry.description}",
+            name=f"[technical+functional] owndb: {entry.annotation}",
         )
         return line
 
 
 @converter2odoo.register(210)
 class OdooMisc2Odoo(OdooMisc, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=12337, # "(BS) MISC",
@@ -114,7 +114,7 @@ class OdooMisc2Odoo(OdooMisc, OdooConverter2Odoo):
 
 @converter2odoo.register(410)
 class OdooImprovement2Odoo(OdooImprovement, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         task_id: int
         description: str
@@ -125,7 +125,7 @@ class OdooImprovement2Odoo(OdooImprovement, OdooConverter2Odoo):
 
 @converter2odoo.register(510)
 class OdooCoaching2Odoo(OdooCoaching, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project="(BS) COACHING",
@@ -136,7 +136,7 @@ class OdooCoaching2Odoo(OdooCoaching, OdooConverter2Odoo):
 
 @converter2odoo.register(610)
 class OdooReview2Odoo(OdooReview, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=853,
@@ -147,7 +147,7 @@ class OdooReview2Odoo(OdooReview, OdooConverter2Odoo):
 
 @converter2odoo.register(710)
 class OdooMeeting2Odoo(OdooMeeting, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             project=12336, # "(BS) MEETING"
@@ -158,7 +158,7 @@ class OdooMeeting2Odoo(OdooMeeting, OdooConverter2Odoo):
 
 @converter2odoo.register(810)
 class OdooTask2Odoo(OdooTask, OdooConverter2Odoo):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         task_id: int
         description: str

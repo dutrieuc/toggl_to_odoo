@@ -1,6 +1,6 @@
 from typing import Optional
 
-from toggl.api import TimeEntry
+from toggl_to_odoo.timewarrior import TimeInterval
 
 from toggl_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
 from .odoo_common import (
@@ -26,7 +26,7 @@ class SimpleConverter2Owndb(SimpleConverter):
 
 
 class OdooConverter2Owndb(SimpleConverter2Owndb, OdooConverter):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["project"] = f"Odoo {line['date'].year}"
         return line
@@ -34,18 +34,18 @@ class OdooConverter2Owndb(SimpleConverter2Owndb, OdooConverter):
 
 @converter2owndb.register(110)
 class OdooOnboarding2Owndb(OdooOnboarding, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line.update(
             task="Training (functional)",
-            name=f"[onboarding] {entry.description}",
+            name=f"[onboarding] {entry.annotation}",
         )
         return line
 
 
 @converter2owndb.register(120)
 class OdooTraining2Owndb(OdooTraining, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Training (technical)"
         return line
@@ -53,7 +53,7 @@ class OdooTraining2Owndb(OdooTraining, OdooConverter2Owndb):
 
 @converter2owndb.register(180)
 class OdooOwndb2Owndb(OdooOwndb, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Training (owndb)"
         return line
@@ -61,7 +61,7 @@ class OdooOwndb2Owndb(OdooOwndb, OdooConverter2Owndb):
 
 @converter2owndb.register(210)
 class OdooMisc2Owndb(OdooMisc, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Miscellaneous"
         return line
@@ -69,7 +69,7 @@ class OdooMisc2Owndb(OdooMisc, OdooConverter2Owndb):
 
 @converter2owndb.register(410)
 class OdooImprovement2Owndb(OdooImprovement, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Int. Improvement"
         return line
@@ -77,7 +77,7 @@ class OdooImprovement2Owndb(OdooImprovement, OdooConverter2Owndb):
 
 @converter2owndb.register(510)
 class OdooCoaching2Owndb(OdooCoaching, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Coaching"
         return line
@@ -85,7 +85,7 @@ class OdooCoaching2Owndb(OdooCoaching, OdooConverter2Owndb):
 
 @converter2owndb.register(610)
 class OdooReview2Owndb(OdooReview, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Code Review"
         return line
@@ -93,7 +93,7 @@ class OdooReview2Owndb(OdooReview, OdooConverter2Owndb):
 
 @converter2owndb.register(710)
 class OdooMeeting2Owndb(OdooMeeting, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Meeting"
         return line
@@ -101,7 +101,7 @@ class OdooMeeting2Owndb(OdooMeeting, OdooConverter2Owndb):
 
 @converter2owndb.register(810)
 class OdooTask2Owndb(OdooTask, OdooConverter2Owndb):
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         task_id: int
         task_desc: Optional[str]
@@ -116,10 +116,10 @@ class OdooTask2Owndb(OdooTask, OdooConverter2Owndb):
 
 @converter2owndb.register(9999)
 class OdooNonBillable2Owndb(OdooConverter2Owndb):
-    def matches(self, entry: TimeEntry) -> bool:
+    def matches(self, entry: TimeInterval) -> bool:
         return super().matches(entry) and "non-billable" in entry.tags
 
-    def convert(self, entry: TimeEntry) -> TimesheetLine:
+    def convert(self, entry: TimeInterval) -> TimesheetLine:
         line: TimesheetLine = super().convert(entry)
         line["task"] = "Non-billable"
         return line

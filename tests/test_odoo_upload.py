@@ -27,7 +27,7 @@ def make_line(**overrides):
         "task": 4,
         "name": "Fixed an important bug",
         "unit_amount": 1.5,
-        "_toggl_ids": {1001},
+        "_timew_ids": {1001},
     }
     line.update(overrides)
     return line
@@ -127,7 +127,7 @@ class OdooUploadTestCase(unittest.TestCase):
 
     def test_dry_run_creates_no_records(self):
         odoo, history = self.run_upload(
-            [make_line(), make_line(name="Took a nap", _toggl_ids={1002})],
+            [make_line(), make_line(name="Took a nap", _timew_ids={1002})],
             dry_run=True,
         )
         self.assertEqual(odoo.records.get("account.analytic.line", {}), {})
@@ -218,7 +218,7 @@ class OdooUploadTestCase(unittest.TestCase):
 
     def test_conflicting_history_raises_by_default(self):
         self.run_upload([make_line()])
-        merged = make_line(_toggl_ids={1001, 1002})
+        merged = make_line(_timew_ids={1001, 1002})
         with self.assertRaises(UploadException) as ctx:
             self.run_upload([merged])
         self.assertIn(
@@ -227,7 +227,7 @@ class OdooUploadTestCase(unittest.TestCase):
 
     def test_conflicting_history_overwrites_when_forced(self):
         self.run_upload([make_line()])
-        merged = make_line(_toggl_ids={1001, 1002})
+        merged = make_line(_timew_ids={1001, 1002})
         odoo, history = self.run_upload([merged], overwrite=True)
         analytic = odoo.records["account.analytic.line"]
         self.assertEqual(len(analytic), 1)  # stale record was deleted
@@ -240,11 +240,11 @@ class OdooUploadTestCase(unittest.TestCase):
         )
         self.assertEqual(history["account.analytic.line"][2], {1001, 1002})
 
-    def test_line_without_toggl_refs_raises(self):
-        line = make_line(_toggl_ids=set())
+    def test_line_without_timew_refs_raises(self):
+        line = make_line(_timew_ids=set())
         with self.assertRaises(UploadException) as ctx:
             self.run_upload([line])
-        self.assertIn('without "_toggl_ids"', str(ctx.exception))
+        self.assertIn('without "_timew_ids"', str(ctx.exception))
 
     def test_upload_error_reports_the_offending_line(self):
         line = make_line(project="Unknown project")

@@ -6,16 +6,15 @@ import os.path
 from typing import List, Mapping, MutableMapping, Union, Optional, Tuple, Sequence
 from urllib.parse import urlparse, ParseResult, urlunparse
 
+from datetime import datetime
 from dateutil.parser import parse as dateutil_parse
-
-from toggl.api import TimeEntry
-from toggl.api.base import TogglSet
 
 from . import converters
 from .odoo_upload import odoo_upload
 from .utils import fmt_time
 from .processing import fetch_and_process
 from .convert import get_converter, ChainedConverter, TimesheetLine
+from .timewarrior import TimeInterval
 
 
 LOG_FORMAT: str = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
@@ -39,6 +38,14 @@ class CommaSplitArgs(argparse.Action):
     ) -> None:
         values = values.split(",") if isinstance(values, str) else values
         setattr(namespace, self.dest, values)
+
+
+def parse_cli_datetime(value: str, end_of_day: bool = False) -> datetime:
+    """Parse a CLI date/datetime, treating a bare date as that whole day."""
+    dt: datetime = dateutil_parse(value)
+    if end_of_day and not any((dt.hour, dt.minute, dt.second, dt.microsecond)):
+        dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return dt
 
 
 def setup_logger(verbosity: int) -> None:
@@ -122,29 +129,6 @@ def main():
         "--until",
         metavar="DATETIME",
         help="Get entries until the given date/time",
-    )
-    fetch_parser.add_argument(
-        "-c",
-        "--clients",
-        metavar="CLIENT[,CLIENT,...]",
-        default="",
-        help="Clients to filter by, comma-separated",
-    )
-    fetch_parser.add_argument(
-        "-pi",
-        "--projects",
-        "--projects-include",
-        metavar="PROJECT[,PROJECT,...]",
-        dest="projects_include",
-        default="",
-        help="Projects to filter by, comma-separated",
-    )
-    fetch_parser.add_argument(
-        "-pe",
-        "--projects-exclude",
-        metavar="PROJECT[,PROJECT,...]",
-        default="",
-        help="Projects to exclude, comma-separated",
     )
     fetch_parser.add_argument(
         "-ti",
@@ -280,78 +264,72 @@ def main():
             url=args.url, username=args.username, password=args.password
         )
 
-    with TogglSet.cache_context():
-        logger.debug("Fetching time entries...")
-        time_entries: List[TimeEntry] = fetch_and_process(
-            since=dateutil_parse(args.since) if args.since else None,
-            until=dateutil_parse(args.until) if args.until else None,
-            clients=args.clients.split(",") if args.clients else None,
-            projects=args.projects_include.split(",")
-            if args.projects_include
-            else None,
-            projects_exclude=args.projects_exclude.split(",")
-            if args.projects_exclude
-            else None,
-            tags_include=args.tags_include.split(",") if args.tags_include else None,
-            tags_exclude=args.tags_exclude.split(",") if args.tags_exclude else None,
-            snap_seconds=args.snap or None,
+    logger.debug("Fetching time intervals...")
+    time_entries: List[TimeInterval] = fetch_and_process(
+        since=parse_cli_datetime(args.since) if args.since else None,
+        until=parse_cli_datetime(args.until, end_of_day=True)
+        if args.until
+        else None,
+        tags_include=args.tags_include.split(",") if args.tags_include else None,
+        tags_exclude=args.tags_exclude.split(",") if args.tags_exclude else None,
+        snap_seconds=args.snap or None,
+    )
+    entries_duration: float = sum(e.duration for e in time_entries)
+    lines_duration: float = False
+    logger.info(f"Fetched and processed {len(time_entries)} time entries")
+    logger.info(f"Total duration of time entries: {fmt_time(entries_duration)}")
+
+    if args.mode in ("convert", "upload"):
+        logger.debug("Converting time entries to timesheet lines...")
+        converter: ChainedConverter = get_converter(args.converter)
+        converter_options: MutableMapping[str, str] = dict(
+            tuple(opt.split("=")) for opt in (args.convert_options or [])
         )
-        entries_duration: float = sum(e.duration for e in time_entries)
-        lines_duration: float = False
-        logger.info(f"Fetched and processed {len(time_entries)} time entries")
-        logger.info(f"Total duration of time entries: {fmt_time(entries_duration)}")
+        # TODO: Converter options type casting (how?) / remove feature
+        timesheet_lines: List[TimesheetLine] = converter.convert(
+            entries=time_entries,
+            must_match=not args.skip_unmatched,
+            merge=args.merge,
+            merge_keys=args.merge_keys.split(",") if args.merge_keys else None,
+            **converter_options,
+        )
+        lines_duration = sum(l["unit_amount"] * 3600 for l in timesheet_lines)
+        logger.info(
+            f"Converted {len(time_entries)} entries "
+            f"to {len(timesheet_lines)} timesheet lines"
+        )
+        logger.info(
+            f"Total duration of timesheet lines: {fmt_time(lines_duration)}"
+        )
 
-        if args.mode in ("convert", "upload"):
-            logger.debug("Converting time entries to timesheet lines...")
-            converter: ChainedConverter = get_converter(args.converter)
-            converter_options: MutableMapping[str, str] = dict(
-                tuple(opt.split("=")) for opt in (args.convert_options or [])
-            )
-            # TODO: Converter options type casting (how?) / remove feature
-            timesheet_lines: List[TimesheetLine] = converter.convert(
-                entries=time_entries,
-                must_match=not args.skip_unmatched,
-                merge=args.merge,
-                merge_keys=args.merge_keys.split(",") if args.merge_keys else None,
-                **converter_options,
-            )
-            lines_duration = sum(l["unit_amount"] * 3600 for l in timesheet_lines)
-            logger.info(
-                f"Converted {len(time_entries)} entries "
-                f"to {len(timesheet_lines)} timesheet lines"
-            )
-            logger.info(
-                f"Total duration of timesheet lines: {fmt_time(lines_duration)}"
-            )
-
-        if args.mode == "upload":
-            odoo_upload(
-                timesheet_lines,
-                url=odoo_url,
-                db=args.database,
-                username=odoo_username,
-                password=odoo_password,
-                history_file=args.history,
-                allow_task_creation=args.create_tasks,
-                dry_run=args.dry_run,
-                overwrite_conflicts=args.force,
-            )
-        else:
-            items: Union[List[TimeEntry], List[TimesheetLine]]
-            items = time_entries if args.mode == "fetch" else timesheet_lines
-            item: Union[TimeEntry, TimesheetLine]
-            for item in items:
-                print(repr(item))
-            hrs_workday: float = 7.6
-            entries_duration = lines_duration or entries_duration
-            work_days = entries_duration / 60 / 60 / hrs_workday
-            time_to_round = (math.ceil(work_days) - work_days) * 60 * 60 * hrs_workday
-            print(
-                f"Total duration of time entries: {fmt_time(entries_duration)} "
-                f"/ ~{work_days:.2f} work days "
-                f"(at {hrs_workday} hrs/day), "
-                f"{fmt_time(time_to_round)} more to round up"
-            )
+    if args.mode == "upload":
+        odoo_upload(
+            timesheet_lines,
+            url=odoo_url,
+            db=args.database,
+            username=odoo_username,
+            password=odoo_password,
+            history_file=args.history,
+            allow_task_creation=args.create_tasks,
+            dry_run=args.dry_run,
+            overwrite_conflicts=args.force,
+        )
+    else:
+        items: Union[List[TimeInterval], List[TimesheetLine]]
+        items = time_entries if args.mode == "fetch" else timesheet_lines
+        item: Union[TimeInterval, TimesheetLine]
+        for item in items:
+            print(repr(item))
+        hrs_workday: float = 7.6
+        entries_duration = lines_duration or entries_duration
+        work_days = entries_duration / 60 / 60 / hrs_workday
+        time_to_round = (math.ceil(work_days) - work_days) * 60 * 60 * hrs_workday
+        print(
+            f"Total duration of time entries: {fmt_time(entries_duration)} "
+            f"/ ~{work_days:.2f} work days "
+            f"(at {hrs_workday} hrs/day), "
+            f"{fmt_time(time_to_round)} more to round up"
+        )
 
 
 if __name__ == "__main__":
