@@ -1,6 +1,6 @@
-# toggl_to_odoo
+# timew_to_odoo
 
-**toggl_to_odoo** is a tool to synchronize entries from **Timewarrior** to timesheets in an **Odoo** database
+**timew_to_odoo** is a tool to synchronize entries from **Timewarrior** to timesheets in an **Odoo** database
 
 ## Setup
 
@@ -35,7 +35,7 @@ For example *Misc* entries have to be tagged with "Odoo-misc".
 
 To run the synchronization, run :
 ```sh
-python3 -m toggl_to_odoo upload toggl2odoo https://www.odoo.com openerp history
+python3 -m timew_to_odoo upload timew2odoo https://www.odoo.com openerp history
 ```
 
 ## Testing

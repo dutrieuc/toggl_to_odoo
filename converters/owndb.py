@@ -1,8 +1,8 @@
 from typing import Optional
 
-from toggl_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timewarrior import TimeInterval
 
-from toggl_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
+from timew_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
 from .odoo_common import (
     OdooConverter,
     OdooOnboarding,
@@ -18,7 +18,7 @@ from .odoo_common import (
 )
 
 
-converter2owndb = ChainedConverter("toggl2owndb")
+converter2owndb = ChainedConverter("timew2owndb")
 
 
 class SimpleConverter2Owndb(SimpleConverter):

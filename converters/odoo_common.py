@@ -1,9 +1,9 @@
 import re
 from typing import Tuple, Optional, Match
 
-from toggl_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timewarrior import TimeInterval
 
-from toggl_to_odoo.convert import SimpleConverter
+from timew_to_odoo.convert import SimpleConverter
 
 
 def _has_any_tag(entry: TimeInterval, *tags: str) -> bool:

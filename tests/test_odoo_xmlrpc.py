@@ -1,8 +1,8 @@
 import unittest
 from unittest import mock
 
-import toggl_to_odoo.odoo_xmlrpc as xmlrpc_module
-from toggl_to_odoo.odoo_xmlrpc import OdooXmlRpc
+import timew_to_odoo.odoo_xmlrpc as xmlrpc_module
+from timew_to_odoo.odoo_xmlrpc import OdooXmlRpc
 
 
 def make_rpc():

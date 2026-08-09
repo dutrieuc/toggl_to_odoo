@@ -15,9 +15,9 @@ from unittest import mock
 from converters.odoo import CustomChainedConverter, OdooTask2Odoo, converter2odoo
 from converters.odoo_common import extract_task
 from converters.owndb import converter2owndb
-from toggl_to_odoo import odoo_upload as upload_module
-from toggl_to_odoo.processing import fetch_and_process
-from toggl_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo import odoo_upload as upload_module
+from timew_to_odoo.processing import fetch_and_process
+from timew_to_odoo.timewarrior import TimeInterval
 
 from .fakes import FakeOdooXmlRpc, FakeShelf
 
@@ -54,7 +54,7 @@ class MockedTimewCli:
     def __init__(self, rows):
         self.rows = rows
         self._patcher = mock.patch(
-            "toggl_to_odoo.timewarrior.subprocess.run",
+            "timew_to_odoo.timewarrior.subprocess.run",
             side_effect=FakeTimewCli(self.rows),
         )
 
@@ -373,7 +373,7 @@ class OdooConverterTestCase(unittest.TestCase):
 
 
 class OwndbConverterTestCase(unittest.TestCase):
-    """Converter dispatch on the ``toggl2owndb`` chain: with several tags an
+    """Converter dispatch on the ``timew2owndb`` chain: with several tags an
     interval may match multiple converters, and the highest-priority match
     must win."""
 

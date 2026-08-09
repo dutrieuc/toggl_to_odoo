@@ -8,8 +8,8 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from toggl_to_odoo import odoo_upload as upload_module
-from toggl_to_odoo.odoo_upload import (
+from timew_to_odoo import odoo_upload as upload_module
+from timew_to_odoo.odoo_upload import (
     UploadException,
     InconsistentHistory,
     match_history_refs,

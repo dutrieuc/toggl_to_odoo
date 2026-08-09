@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from toggl_to_odoo.utils import fmt_time, import_submodules
+from timew_to_odoo.utils import fmt_time, import_submodules
 
 
 class FmtTimeTestCase(unittest.TestCase):

@@ -16,7 +16,7 @@ class FakeShelf(dict):
 class FakeOdooXmlRpc:
     """
     In-memory implementation of the subset of the Odoo XML-RPC object API
-    that :mod:`toggl_to_odoo.odoo_upload` relies on.
+    that :mod:`timew_to_odoo.odoo_upload` relies on.
 
     Records are stored per model in ``self.records`` (``model -> id -> record``),
     so tests can both seed the "database" and assert on what got written.

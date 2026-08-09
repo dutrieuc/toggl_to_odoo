@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from toggl_to_odoo.convert import ChainedConverter, SimpleConverter, get_converter
-from toggl_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.convert import ChainedConverter, SimpleConverter, get_converter
+from timew_to_odoo.timewarrior import TimeInterval
 
 DT0 = datetime(2026, 8, 9, 9, 0, 0, tzinfo=timezone.utc)
 

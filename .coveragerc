@@ -1,5 +1,5 @@
 [run]
-source = toggl_to_odoo, converters
+source = timew_to_odoo, converters
 omit = converters/owndb.py
 branch = True
 

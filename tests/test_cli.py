@@ -1,9 +1,9 @@
-"""Tests for the ``toggl_to_odoo`` command-line entry point.
+"""Tests for the ``timew_to_odoo`` command-line entry point.
 
 The timewarrior/Cli is not involved: ``fetch_and_process`` and ``odoo_upload``
 are mocked. ``main()`` normally loads the converters from ``converters/`` on
 its own path; the test-suite already imports that top-level ``converters``
-package, so loading it a second time under the ``toggl_to_odoo.converters``
+package, so loading it a second time under the ``timew_to_odoo.converters``
 namespace would re-register the converter chains and raise a name conflict.
 ``import_converters`` is therefore stubbed out and the pre-registered chain is
 reused.
@@ -15,8 +15,8 @@ from unittest import mock
 
 import converters.odoo  # noqa: F401  (ensure the chain is registered)
 
-from toggl_to_odoo.__main__ import main
-from toggl_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.__main__ import main
+from timew_to_odoo.timewarrior import TimeInterval
 
 INTERVAL = TimeInterval(
     id=1000,
@@ -29,17 +29,17 @@ INTERVAL = TimeInterval(
 
 class CliTestCase(unittest.TestCase):
     def run_main(self, argv):
-        with mock.patch("toggl_to_odoo.converters.import_converters"):
+        with mock.patch("timew_to_odoo.converters.import_converters"):
             with mock.patch("sys.argv", argv):
                 main()
 
     def test_fetch_mode(self):
         with mock.patch(
-            "toggl_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+            "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
         ) as fetch:
             self.run_main(
                 [
-                    "toggl_to_odoo",
+                    "timew_to_odoo",
                     "fetch",
                     "-ds",
                     "2026-08-09",
@@ -57,11 +57,11 @@ class CliTestCase(unittest.TestCase):
 
     def test_fetch_with_tags_filter(self):
         with mock.patch(
-            "toggl_to_odoo.__main__.fetch_and_process", return_value=[]
+            "timew_to_odoo.__main__.fetch_and_process", return_value=[]
         ) as fetch:
             self.run_main(
                 [
-                    "toggl_to_odoo",
+                    "timew_to_odoo",
                     "fetch",
                     "-ti",
                     "Odoo-psbe,urgent",
@@ -75,15 +75,15 @@ class CliTestCase(unittest.TestCase):
     def test_convert_mode(self):
         with (
             mock.patch(
-                "toggl_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+                "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
             ),
-            mock.patch("toggl_to_odoo.__main__.odoo_upload") as upload,
+            mock.patch("timew_to_odoo.__main__.odoo_upload") as upload,
         ):
             self.run_main(
                 [
-                    "toggl_to_odoo",
+                    "timew_to_odoo",
                     "convert",
-                    "toggl2odoo",
+                    "timew2odoo",
                     "-ds",
                     "2026-08-09",
                     "-du",
@@ -95,15 +95,15 @@ class CliTestCase(unittest.TestCase):
     def test_upload_mode(self):
         with (
             mock.patch(
-                "toggl_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+                "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
             ),
-            mock.patch("toggl_to_odoo.__main__.odoo_upload") as upload,
+            mock.patch("timew_to_odoo.__main__.odoo_upload") as upload,
         ):
             self.run_main(
                 [
-                    "toggl_to_odoo",
+                    "timew_to_odoo",
                     "upload",
-                    "toggl2odoo",
+                    "timew2odoo",
                     "https://odoo.example.com",
                     "testdb",
                     "-u",

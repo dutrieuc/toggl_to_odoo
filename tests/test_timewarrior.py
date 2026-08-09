@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest import mock
 
-from toggl_to_odoo.timewarrior import (
+from timew_to_odoo.timewarrior import (
     TimeInterval,
     deserialize_interval,
     fetch_intervals,
@@ -90,7 +90,7 @@ class FetchIntervalsTestCase(unittest.TestCase):
             ]
         )
         with mock.patch(
-            "toggl_to_odoo.timewarrior.subprocess.run",
+            "timew_to_odoo.timewarrior.subprocess.run",
             return_value=types.SimpleNamespace(stdout=payload),
         ):
             intervals = fetch_intervals()
