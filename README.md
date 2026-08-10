@@ -50,7 +50,7 @@ python3 -m unittest discover -t .
 ```
 
 A coverage report is generated alongside the test run (install the dev
-dependencies first: `pip3 install -r requirements-dev.txt`):
+dependencies first: `pip3 install coverage`):
 
 ```sh
 coverage run -m unittest discover -t .
