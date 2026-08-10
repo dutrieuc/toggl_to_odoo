@@ -419,5 +419,5 @@ class OwndbConverterTestCase(unittest.TestCase):
         [line] = self.convert(
             ["Odoo-psbe", "urgent", "task:56012"], "Fix accounting module"
         )
-        self.assertEqual(line["task"], "56012")
+        self.assertEqual(line["task"], 56012)
         self.assertEqual(line["name"], "Fix accounting module")

@@ -11,10 +11,20 @@ license = { text = "GPL-3.0-only" }
 version = "0.1.0"
 dependencies = [
     "python-dateutil>=2,<3",
+    "typer>=0.9",
 ]
 
 [project.scripts]
 timew_to_odoo = "timew_to_odoo.__main__:main"
+odoo-task = "timew_to_odoo.odoo_task.cli:main"
 
 [tool.setuptools]
-packages = ["timew_to_odoo", "timew_to_odoo.converters", "converters"]
+packages = [
+    "timew_to_odoo",
+    "timew_to_odoo.converters",
+    "timew_to_odoo.odoo_task",
+    "converters",
+]
+
+[tool.setuptools.package-data]
+"timew_to_odoo.odoo_task" = ["py.typed"]
