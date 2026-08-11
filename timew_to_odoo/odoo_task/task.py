@@ -39,9 +39,9 @@ def from_special(kind: str, annotation: str = "") -> StartRequest:
 
 def from_branch(annotation: str = "") -> StartRequest:
     branch = git_mod.current_branch()
-    task_id, branch_annotation = branch_mod.parse_branch(branch)
+    task_id, task_slug = branch_mod.parse_branch(branch)
     return StartRequest(
-        ["Odoo-psbe", f"task:{task_id}"], annotation or branch_annotation
+        ["Odoo-psbe", f"task:{task_id}", task_slug], annotation
     )
 
 

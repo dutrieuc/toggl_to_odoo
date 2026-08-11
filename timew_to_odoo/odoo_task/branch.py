@@ -22,5 +22,5 @@ def parse_branch(branch: str) -> Tuple[str, str]:
         raise BranchParseError(
             "could not determine Odoo task ID from Git branch %r." % branch
         )
-    annotation = parts[3].strip("-") if len(parts) > 3 else ""
-    return parts[1], annotation
+    task_slug = parts[3].strip("-") if len(parts) > 3 else ""
+    return parts[1], task_slug

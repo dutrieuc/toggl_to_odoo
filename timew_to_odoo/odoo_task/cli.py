@@ -7,6 +7,7 @@ import typer
 
 from . import task as task_mod
 from . import timew as timew_mod
+from ..utils import fmt_time
 from .branch import BranchParseError
 from .fzf import FzfError
 from .git import GitError
@@ -64,7 +65,16 @@ def odoo_task(
     if request is None:
         return
     try:
-        timew_mod.start(request.tags, request.annotation or None)
+        stopped = timew_mod.start(request.tags, request.annotation or None)
+        if stopped is not None:
+            print(
+                f"Stopped interval: total {fmt_time(stopped.total_seconds())}"
+            )
+        task_tag = next(
+            (tag for tag in request.tags if tag.startswith("task:")), ""
+        )
+        details = " ".join(filter(None, [task_tag, request.annotation]))
+        print(f"Started interval: {details}")
     except TimewError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1)
