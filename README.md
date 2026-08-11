@@ -35,7 +35,7 @@ For example *Misc* entries have to be tagged with "Odoo-misc".
 
 To run the synchronization, run :
 ```sh
-python3 -m timew_to_odoo upload timew2odoo https://www.odoo.com openerp history
+python3 -m timew_to_odoo.timew_to_odoo upload timew2odoo https://www.odoo.com openerp history
 ```
 
 ## Testing
@@ -48,6 +48,9 @@ is required:
 ```sh
 python3 -m unittest discover -t .
 ```
+
+Tests live next to their source: `timew_to_odoo/timew_to_odoo/tests/` for the
+main package and `timew_to_odoo/odoo_task/tests/` for the `odoo-task` CLI tool.
 
 A coverage report is generated alongside the test run (install the dev
 dependencies first: `pip3 install coverage`):

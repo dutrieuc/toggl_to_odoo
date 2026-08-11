@@ -1,6 +1,6 @@
-from timew_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval
 
-from timew_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
+from timew_to_odoo.timew_to_odoo.convert import ChainedConverter, SimpleConverter, TimesheetLine
 from .odoo_common import (
     OdooConverter,
     OdooOnboarding,

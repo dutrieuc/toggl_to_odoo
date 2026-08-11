@@ -7,7 +7,7 @@ import typer
 
 from . import task as task_mod
 from . import timew as timew_mod
-from ..utils import fmt_time
+from ..timew_to_odoo.utils import fmt_time
 from .branch import BranchParseError
 from .fzf import FzfError
 from .git import GitError

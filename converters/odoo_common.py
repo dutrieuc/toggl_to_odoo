@@ -1,9 +1,9 @@
 import re
 from typing import Match, Optional, Tuple
 
-from timew_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval
 
-from timew_to_odoo.convert import SimpleConverter
+from timew_to_odoo.timew_to_odoo.convert import SimpleConverter
 
 
 TASK_TAG_REGEX = re.compile(r"^task:(?P<task_id>\d+)$")

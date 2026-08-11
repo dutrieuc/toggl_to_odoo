@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from timew_to_odoo.processing import snap_entries
-from timew_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timew_to_odoo.processing import snap_entries
+from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval
 
 DT = datetime(2026, 8, 9, 9, 0, 0, tzinfo=timezone.utc)
 

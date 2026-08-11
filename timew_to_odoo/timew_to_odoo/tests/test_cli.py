@@ -14,9 +14,9 @@ from datetime import datetime, timezone
 from unittest import mock
 
 import converters.odoo  # noqa: F401  (ensure the chain is registered)
+from timew_to_odoo.timew_to_odoo.__main__ import main
 
-from timew_to_odoo.__main__ import main
-from timew_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval
 
 INTERVAL = TimeInterval(
     id=1000,
@@ -29,13 +29,13 @@ INTERVAL = TimeInterval(
 
 class CliTestCase(unittest.TestCase):
     def run_main(self, argv):
-        with mock.patch("timew_to_odoo.converters.import_converters"):
+        with mock.patch("timew_to_odoo.timew_to_odoo.converters.import_converters"):
             with mock.patch("sys.argv", argv):
                 main()
 
     def test_fetch_mode(self):
         with mock.patch(
-            "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+            "timew_to_odoo.timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
         ) as fetch:
             self.run_main(
                 [
@@ -57,7 +57,7 @@ class CliTestCase(unittest.TestCase):
 
     def test_fetch_with_tags_filter(self):
         with mock.patch(
-            "timew_to_odoo.__main__.fetch_and_process", return_value=[]
+            "timew_to_odoo.timew_to_odoo.__main__.fetch_and_process", return_value=[]
         ) as fetch:
             self.run_main(
                 [
@@ -75,9 +75,9 @@ class CliTestCase(unittest.TestCase):
     def test_convert_mode(self):
         with (
             mock.patch(
-                "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+                "timew_to_odoo.timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
             ),
-            mock.patch("timew_to_odoo.__main__.odoo_upload") as upload,
+            mock.patch("timew_to_odoo.timew_to_odoo.__main__.odoo_upload") as upload,
         ):
             self.run_main(
                 [
@@ -95,9 +95,9 @@ class CliTestCase(unittest.TestCase):
     def test_upload_mode(self):
         with (
             mock.patch(
-                "timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
+                "timew_to_odoo.timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
             ),
-            mock.patch("timew_to_odoo.__main__.odoo_upload") as upload,
+            mock.patch("timew_to_odoo.timew_to_odoo.__main__.odoo_upload") as upload,
         ):
             self.run_main(
                 [
