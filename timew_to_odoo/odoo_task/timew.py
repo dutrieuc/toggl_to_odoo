@@ -3,7 +3,7 @@
 import json
 import subprocess
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Mapping, Optional, Sequence
+from typing import Any, List, Mapping, Sequence
 
 DATETIME_FORMAT = "%Y%m%dT%H%M%SZ"
 
@@ -14,37 +14,6 @@ class TimewError(RuntimeError):
 
 def parse_timestamp(value: str) -> datetime:
     return datetime.strptime(value, DATETIME_FORMAT).replace(tzinfo=timezone.utc)
-
-
-def start(tags: Sequence[str], annotation: Optional[str] = None) -> Optional[timedelta]:
-    """Start a Timewarrior interval with ``tags`` and optionally the annotation.
-
-    Returns the total time of the interval stopped to make way for the new
-    one, or ``None`` when no interval was running.
-    """
-    stopped = None
-    if is_tracking():
-        stopped = stop()
-    _run(["timew", "start", *tags], "timew start failed")
-    if annotation:
-        _run(["timew", "annotate", annotation], "timew annotate failed")
-    return stopped
-
-
-def stop() -> timedelta:
-    """Stop the running Timewarrior interval and return its total time."""
-    completed = _run(["timew", "stop"], "timew stop failed")
-    intervals = _closed_intervals()
-    if not intervals:
-        raise TimewError(completed.stdout.strip() or "timew stop recorded no interval")
-    last = max(intervals, key=lambda interval: parse_timestamp(interval["end"]))
-    return parse_timestamp(last["end"]) - parse_timestamp(last["start"])
-
-
-def is_tracking() -> bool:
-    """Return ``True`` when a Timewarrior interval is currently running."""
-    completed = _run(["timew", "get", "dom.active"], "timew get failed")
-    return completed.stdout.strip() == "1"
 
 
 def export(filters: Sequence[str] = ()) -> List[Mapping[str, Any]]:
@@ -67,11 +36,6 @@ def recent_intervals(days: int = 14) -> List[Mapping[str, Any]]:
         for interval in export()
         if parse_timestamp(interval["start"]) >= cutoff
     ]
-
-
-def _closed_intervals() -> List[Mapping[str, Any]]:
-    """Return all completed (closed) intervals from the export."""
-    return [interval for interval in export() if "end" in interval]
 
 
 def _run(

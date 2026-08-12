@@ -6,8 +6,6 @@ from typing import List, Optional, Tuple
 import typer
 
 from . import task as task_mod
-from . import timew as timew_mod
-from ..timew_to_odoo.utils import fmt_time
 from .branch import BranchParseError
 from .fzf import FzfError
 from .git import GitError
@@ -15,7 +13,7 @@ from .task import RecentTaskError
 from .timew import TimewError
 
 app = typer.Typer(
-    help="Start a Timewarrior task tagged with the appropriate Odoo project and task."
+    help="Print the Timewarrior tags for an Odoo task."
 )
 
 
@@ -64,20 +62,7 @@ def odoo_task(
         raise typer.Exit(1)
     if request is None:
         return
-    try:
-        stopped = timew_mod.start(request.tags, request.annotation or None)
-        if stopped is not None:
-            print(
-                f"Stopped interval: total {fmt_time(stopped.total_seconds())}"
-            )
-        task_tag = next(
-            (tag for tag in request.tags if tag.startswith("task:")), ""
-        )
-        details = " ".join(filter(None, [task_tag, request.annotation]))
-        print(f"Started interval: {details}")
-    except TimewError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        raise typer.Exit(1)
+    print(" ".join(request.tags))
 
 
 def _resolve(
