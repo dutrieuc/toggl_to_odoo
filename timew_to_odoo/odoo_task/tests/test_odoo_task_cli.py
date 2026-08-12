@@ -1,5 +1,7 @@
 """CLI tests for odoo-task."""
 
+import os
+import tempfile
 import types
 import unittest
 from unittest import mock
@@ -14,6 +16,7 @@ from timew_to_odoo.odoo_task.timew import TimewError
 runner = CliRunner()
 
 PATCH_BRANCH = "timew_to_odoo.odoo_task.task.git_mod.current_branch"
+PATCH_REPO = "timew_to_odoo.odoo_task.task.git_mod.current_repo"
 PATCH_PICK = "timew_to_odoo.odoo_task.task.fzf_mod.pick"
 PATCH_RECENT = "timew_to_odoo.odoo_task.task.timew_mod.recent_intervals"
 
@@ -28,6 +31,12 @@ class OdooTaskCliTestCase(unittest.TestCase):
 
     def test_explicit_task_id_with_annotation(self):
         result = runner.invoke(app, ["54321", "investigate regression"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.output, "Odoo-psbe task:54321\n")
+
+    def test_explicit_task_id_does_not_add_project_tag(self):
+        with mock.patch(PATCH_REPO, return_value="myrepo"):
+            result = runner.invoke(app, ["54321"])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-psbe task:54321\n")
 
@@ -46,17 +55,43 @@ class OdooTaskCliTestCase(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-misc\n")
 
-    def test_branch_inference_annotation(self):
-        with mock.patch(PATCH_BRANCH, return_value=BRANCH):
+    def test_special_task_does_not_add_project_tag(self):
+        with mock.patch(PATCH_REPO, return_value="myrepo"):
+            result = runner.invoke(app, ["meeting"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.output, "Odoo-meeting\n")
+
+    def test_context_inference_annotation(self):
+        with mock.patch(PATCH_BRANCH, return_value=BRANCH), mock.patch(
+            PATCH_REPO, return_value="myrepo"
+        ):
             result = runner.invoke(app, ["annotation"])
         self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-psbe task:12345 longer-task-descr\n")
+        self.assertEqual(
+            result.output, "Odoo-psbe project:myrepo task:12345 longer-task-descr\n"
+        )
 
-    def test_branch_inference_no_args(self):
-        with mock.patch(PATCH_BRANCH, return_value=BRANCH):
+    def test_context_inference_no_args(self):
+        with mock.patch(PATCH_BRANCH, return_value=BRANCH), mock.patch(
+            PATCH_REPO, return_value="myrepo"
+        ):
             result = runner.invoke(app, [])
         self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-psbe task:12345 longer-task-descr\n")
+        self.assertEqual(
+            result.output, "Odoo-psbe project:myrepo task:12345 longer-task-descr\n"
+        )
+
+    def test_context_inference_no_git_repo_errors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                result = runner.invoke(app, [])
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("not inside a Git repository", result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_branch_inference_too_many_arguments(self):
         with mock.patch(PATCH_BRANCH, return_value=BRANCH):

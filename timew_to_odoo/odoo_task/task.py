@@ -37,12 +37,12 @@ def from_special(kind: str, annotation: str = "") -> StartRequest:
     return StartRequest([SPECIAL_TASKS[kind]], annotation)
 
 
-def from_branch(annotation: str = "") -> StartRequest:
+def from_context(annotation: str = "") -> StartRequest:
     branch = git_mod.current_branch()
     task_id, task_slug = branch_mod.parse_branch(branch)
-    return StartRequest(
-        ["Odoo-psbe", f"task:{task_id}", task_slug], annotation
-    )
+    repo = git_mod.current_repo()
+    tags = ["Odoo-psbe", f"project:{repo}", f"task:{task_id}", task_slug]
+    return StartRequest(tags, annotation)
 
 
 def recent_tasks(days: int = 14) -> List[StartRequest]:

@@ -76,14 +76,14 @@ def _resolve(
         override = annotation if annotation is not None else task
         return task_mod.pick_recent_task(override or "")
     if task is None:
-        return task_mod.from_branch(annotation or "")
+        return task_mod.from_context(annotation or "")
     if task in task_mod.SPECIAL_TASKS:
         return task_mod.from_special(task, annotation or "")
     if task.isdigit():
         return task_mod.from_task_id(task, annotation or "")
     if annotation is not None:
         raise UsageError("too many arguments: expected a single annotation")
-    return task_mod.from_branch(task)
+    return task_mod.from_context(task)
 
 
 def _recent_task_ids() -> List[str]:

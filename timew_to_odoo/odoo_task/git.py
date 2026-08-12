@@ -1,10 +1,27 @@
 """Git integration helpers."""
 
+import os
 import subprocess
+from typing import Optional
 
 
 class GitError(RuntimeError):
     """Raised when the current Git branch cannot be determined."""
+
+
+def current_repo() -> Optional[str]:
+    """Return the name of the current Git repository, or ``None`` when not
+    inside a Git repository or when no ``origin`` remote is configured.
+    """
+    completed = subprocess.run(
+        ["git", "remote", "get-url", "origin"], capture_output=True, text=True
+    )
+    if completed.returncode != 0:
+        return None
+    name = os.path.basename(completed.stdout.rstrip("/").strip())
+    if name.endswith(".git"):
+        name = name[:-4]
+    return name or None
 
 
 def current_branch() -> str:
