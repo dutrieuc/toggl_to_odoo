@@ -16,7 +16,7 @@ dependencies = [
 
 [project.scripts]
 timew_to_odoo = "timew_to_odoo.timew_to_odoo.__main__:main"
-odoo-task = "timew_to_odoo.odoo_task.cli:main"
+odoo-tag = "timew_to_odoo.odoo_task.cli:main"
 
 [tool.setuptools]
 packages = [
