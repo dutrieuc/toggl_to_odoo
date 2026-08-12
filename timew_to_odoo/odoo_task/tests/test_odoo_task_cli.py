@@ -24,13 +24,8 @@ BRANCH = "19.0-12345-cydu-longer-task-descr"
 
 
 class OdooTaskCliTestCase(unittest.TestCase):
-    def test_explicit_task_id_no_annotation(self):
+    def test_explicit_task_id(self):
         result = runner.invoke(app, ["54321"])
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-psbe task:54321\n")
-
-    def test_explicit_task_id_with_annotation(self):
-        result = runner.invoke(app, ["54321", "investigate regression"])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-psbe task:54321\n")
 
@@ -41,19 +36,9 @@ class OdooTaskCliTestCase(unittest.TestCase):
         self.assertEqual(result.output, "Odoo-psbe task:54321\n")
 
     def test_special_task(self):
-        result = runner.invoke(app, ["meeting", "weekly sync"])
+        result = runner.invoke(app, ["meeting"])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-meeting\n")
-
-    def test_special_task_no_annotation(self):
-        result = runner.invoke(app, ["misc"])
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-misc\n")
-
-    def test_special_task_with_annotation(self):
-        result = runner.invoke(app, ["misc", "timesheet"])
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-misc\n")
 
     def test_special_task_does_not_add_project_tag(self):
         with mock.patch(PATCH_REPO, return_value="myrepo"):
@@ -61,17 +46,7 @@ class OdooTaskCliTestCase(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-meeting\n")
 
-    def test_context_inference_annotation(self):
-        with mock.patch(PATCH_BRANCH, return_value=BRANCH), mock.patch(
-            PATCH_REPO, return_value="myrepo"
-        ):
-            result = runner.invoke(app, ["annotation"])
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(
-            result.output, "Odoo-psbe project:myrepo task:12345 longer-task-descr\n"
-        )
-
-    def test_context_inference_no_args(self):
+    def test_context_inference(self):
         with mock.patch(PATCH_BRANCH, return_value=BRANCH), mock.patch(
             PATCH_REPO, return_value="myrepo"
         ):
@@ -93,11 +68,10 @@ class OdooTaskCliTestCase(unittest.TestCase):
         self.assertIn("not inside a Git repository", result.stderr)
         self.assertEqual(result.stdout, "")
 
-    def test_branch_inference_too_many_arguments(self):
-        with mock.patch(PATCH_BRANCH, return_value=BRANCH):
-            result = runner.invoke(app, ["first", "second"])
+    def test_invalid_task_errors(self):
+        result = runner.invoke(app, ["first"])
         self.assertEqual(result.exit_code, 1)
-        self.assertIn("too many arguments", result.stderr)
+        self.assertIn("expected an Odoo task ID", result.stderr)
 
     def test_branch_without_task_id_errors(self):
         with mock.patch(PATCH_BRANCH, return_value="19.0-foo-bar"):
@@ -124,7 +98,6 @@ class OdooTaskCliTestCase(unittest.TestCase):
                 "id": 1,
                 "start": "20260809T090000Z",
                 "tags": ["Odoo-psbe", "task:12345"],
-                "annotation": "longer-task-descr",
             }
         ]
         with mock.patch(PATCH_RECENT, return_value=intervals), mock.patch(
@@ -140,37 +113,26 @@ class OdooTaskCliTestCase(unittest.TestCase):
                 "id": 1,
                 "start": "20260809T090000Z",
                 "tags": ["Odoo-psbe", "task:12345", "urgent"],
-                "annotation": "first",
             },
             {
                 "id": 2,
                 "start": "20260810T090000Z",
                 "tags": ["Odoo-misc"],
-                "annotation": "meeting",
             },
         ]
         with mock.patch(PATCH_RECENT, return_value=intervals), mock.patch(
-            PATCH_PICK, return_value="task:12345 | first"
+            PATCH_PICK, return_value="task:12345"
         ):
             result = runner.invoke(app, ["-c"])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-psbe task:12345 urgent\n")
 
-    def test_continue_annotation_overrides_selection(self):
-        intervals = [
-            {
-                "id": 1,
-                "start": "20260809T090000Z",
-                "tags": ["Odoo-psbe", "task:12345"],
-                "annotation": "first",
-            }
-        ]
-        with mock.patch(PATCH_RECENT, return_value=intervals), mock.patch(
-            PATCH_PICK, return_value="task:12345 | first"
-        ):
+    def test_continue_rejects_positional_arguments(self):
+        with mock.patch(PATCH_RECENT) as recent:
             result = runner.invoke(app, ["-c", "follow up"])
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.output, "Odoo-psbe task:12345\n")
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("too many arguments with --continue", result.stderr)
+        recent.assert_not_called()
 
     def test_continue_no_recent_tasks_errors(self):
         with mock.patch(PATCH_RECENT, return_value=[]):
@@ -185,13 +147,6 @@ class OdooTaskCliTestCase(unittest.TestCase):
             result = runner.invoke(app, ["--continue"])
         self.assertEqual(result.exit_code, 1)
         self.assertIn("timew export failed", result.stderr)
-
-    def test_continue_with_both_positionals_errors(self):
-        with mock.patch(PATCH_RECENT) as recent:
-            result = runner.invoke(app, ["-c", "a", "b"])
-        self.assertEqual(result.exit_code, 1)
-        self.assertIn("too many arguments", result.stderr)
-        recent.assert_not_called()
 
     def test_export_non_json_output_errors(self):
         with mock.patch(
@@ -208,28 +163,24 @@ class OdooTaskCliTestCase(unittest.TestCase):
                 "id": 1,
                 "start": "20260809T090000Z",
                 "tags": ["Odoo-psbe", "task:111"],
-                "annotation": "old",
             },
             {
                 "id": 2,
                 "start": "20260810T090000Z",
                 "tags": ["Odoo-psbe", "task:111"],
-                "annotation": "new",
             },
             {
                 "id": 3,
                 "start": "20260811T090000Z",
                 "tags": ["Odoo-psbe", "task:222"],
-                "annotation": "other",
             },
             {"id": 4, "start": "20260812T090000Z", "tags": ["personal"]},
         ]
         with mock.patch(PATCH_RECENT, return_value=intervals):
             requests = task_mod.recent_tasks()
         self.assertEqual(
-            [(r.tags, r.annotation) for r in requests],
-            [(["Odoo-psbe", "task:222"], "other"),
-             (["Odoo-psbe", "task:111"], "new")],
+            [r.tags for r in requests],
+            [["Odoo-psbe", "task:222"], ["Odoo-psbe", "task:111"]],
         )
 
 

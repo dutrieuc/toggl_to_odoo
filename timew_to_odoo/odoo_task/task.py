@@ -23,26 +23,25 @@ class RecentTaskError(RuntimeError):
 
 @dataclass
 class StartRequest:
-    """A Timewarrior start request with tags and an optional annotation."""
+    """A Timewarrior start request with tags."""
 
     tags: List[str]
-    annotation: str = ""
 
 
-def from_task_id(task_id: str, annotation: str = "") -> StartRequest:
-    return StartRequest([PROJECT_TAG, f"task:{task_id}"], annotation)
+def from_task_id(task_id: str) -> StartRequest:
+    return StartRequest([PROJECT_TAG, f"task:{task_id}"])
 
 
-def from_special(kind: str, annotation: str = "") -> StartRequest:
-    return StartRequest([SPECIAL_TASKS[kind]], annotation)
+def from_special(kind: str) -> StartRequest:
+    return StartRequest([SPECIAL_TASKS[kind]])
 
 
-def from_context(annotation: str = "") -> StartRequest:
+def from_context() -> StartRequest:
     branch = git_mod.current_branch()
     task_id, task_slug = branch_mod.parse_branch(branch)
     repo = git_mod.current_repo()
     tags = ["Odoo-psbe", f"project:{repo}", f"task:{task_id}", task_slug]
-    return StartRequest(tags, annotation)
+    return StartRequest(tags)
 
 
 def recent_tasks(days: int = 14) -> List[StartRequest]:
@@ -62,18 +61,14 @@ def recent_tasks(days: int = 14) -> List[StartRequest]:
             latest[key] = {
                 "start": start,
                 "tags": tags,
-                "annotation": interval.get("annotation", ""),
             }
     ordered = sorted(latest.values(), key=lambda group: group["start"], reverse=True)
-    return [
-        StartRequest(group["tags"], group["annotation"]) for group in ordered
-    ]
+    return [StartRequest(group["tags"]) for group in ordered]
 
 
-def pick_recent_task(annotation: str = "") -> Optional[StartRequest]:
+def pick_recent_task() -> Optional[StartRequest]:
     """Offer recent Odoo tasks through fzf and return the selection.
 
-    ``annotation`` overrides the selected task's annotation when provided.
     Returns ``None`` when the user cancels fzf.
     """
     requests = recent_tasks()
@@ -85,8 +80,6 @@ def pick_recent_task(annotation: str = "") -> Optional[StartRequest]:
         return None
     for request, candidate in entries:
         if candidate == line:
-            if annotation:
-                request.annotation = annotation
             return request
     return None
 
@@ -102,7 +95,4 @@ def _task_key(tags: List[str]) -> str:
 
 
 def _display(request: StartRequest) -> str:
-    key = _task_key(request.tags)
-    if request.annotation:
-        return f"{key} | {request.annotation}"
-    return key
+    return _task_key(request.tags)

@@ -39,14 +39,10 @@ def _complete_first_arg(
 def odoo_task(
     task: Optional[str] = typer.Argument(
         None,
-        metavar="[TASK_ID | misc | meeting | coaching | training | ANNOTATION]",
-        help=(
-            "Odoo task ID, a special task type, or the annotation when"
-            " inferring the task from the Git branch"
-        ),
+        metavar="[TASK_ID | misc | meeting | coaching | training]",
+        help="Odoo task ID or a special task type",
         autocompletion=_complete_first_arg,
     ),
-    annotation: Optional[str] = typer.Argument(None, help="Task annotation"),
     continue_task: bool = typer.Option(
         False,
         "--continue",
@@ -55,7 +51,7 @@ def odoo_task(
     ),
 ) -> None:
     try:
-        request = _resolve(task, annotation, continue_task)
+        request = _resolve(task, continue_task)
     except (UsageError, GitError, BranchParseError, TimewError, FzfError,
             RecentTaskError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -67,23 +63,19 @@ def odoo_task(
 
 def _resolve(
     task: Optional[str],
-    annotation: Optional[str],
     continue_task: bool,
 ) -> Optional[task_mod.StartRequest]:
     if continue_task:
-        if task is not None and annotation is not None:
+        if task is not None:
             raise UsageError("too many arguments with --continue")
-        override = annotation if annotation is not None else task
-        return task_mod.pick_recent_task(override or "")
+        return task_mod.pick_recent_task()
     if task is None:
-        return task_mod.from_context(annotation or "")
+        return task_mod.from_context()
     if task in task_mod.SPECIAL_TASKS:
-        return task_mod.from_special(task, annotation or "")
+        return task_mod.from_special(task)
     if task.isdigit():
-        return task_mod.from_task_id(task, annotation or "")
-    if annotation is not None:
-        raise UsageError("too many arguments: expected a single annotation")
-    return task_mod.from_context(task)
+        return task_mod.from_task_id(task)
+    raise UsageError("expected an Odoo task ID or a special task, not %r" % task)
 
 
 def _recent_task_ids() -> List[str]:
