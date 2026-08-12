@@ -7,6 +7,7 @@ from unittest import mock
 
 from typer.testing import CliRunner
 
+from timew_to_odoo.odoo_task import task as task_mod
 from timew_to_odoo.odoo_task.cli import app
 from timew_to_odoo.odoo_task.git import GitError
 
@@ -40,6 +41,20 @@ class OdooTaskCliTestCase(unittest.TestCase):
             result = runner.invoke(app, ["meeting"])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(result.output, "Odoo-meeting\n")
+
+    def test_all_special_tasks(self):
+        from converters.odoo_common import special_tasks
+
+        for kind, tag in special_tasks().items():
+            with self.subTest(kind=kind, tag=tag):
+                result = runner.invoke(app, [kind])
+                self.assertEqual(result.exit_code, 0)
+                self.assertEqual(result.output, f"{tag}\n")
+
+    def test_special_tasks_derived_from_converters(self):
+        from converters.odoo_common import special_tasks
+
+        self.assertEqual(task_mod.SPECIAL_TASKS, special_tasks())
 
     def test_context_inference(self):
         with mock.patch(PATCH_BRANCH, return_value=BRANCH), mock.patch(

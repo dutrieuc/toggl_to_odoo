@@ -26,7 +26,7 @@ def _complete_first_arg(
 def odoo_task(
     task: Optional[str] = typer.Argument(
         None,
-        metavar="[TASK_ID | misc | meeting | coaching | training]",
+        metavar=f"[TASK_ID | {' | '.join(task_mod.SPECIAL_TASKS)}]",
         help="Odoo task ID or a special task type",
         autocompletion=_complete_first_arg,
     ),

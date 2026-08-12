@@ -1,18 +1,14 @@
 """Construction of Timewarrior start requests."""
 
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
+
+from converters.odoo_common import PROJECT_TAG, special_tasks
 
 from . import branch as branch_mod
 from . import git as git_mod
 
-PROJECT_TAG = "Odoo-psbe"
-SPECIAL_TASKS = {
-    "misc": "Odoo-misc",
-    "meeting": "Odoo-meeting",
-    "coaching": "Odoo-coaching",
-    "training": "Odoo-training",
-}
+SPECIAL_TASKS: Dict[str, str] = special_tasks()
 
 
 @dataclass
