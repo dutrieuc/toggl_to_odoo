@@ -2,7 +2,6 @@ import argparse
 import getpass
 import logging
 import math
-import os.path
 from typing import List, Mapping, MutableMapping, Union, Optional, Tuple, Sequence
 from urllib.parse import urlparse, ParseResult, urlunparse
 
@@ -243,8 +242,7 @@ def main():
 
     args: argparse.Namespace = main_parser.parse_args()
 
-    converters_paths: List[str] = [os.path.join(os.getcwd(), "converters")]
-    converters_paths.extend(getattr(args, "converters_paths", None) or [])
+    converters_paths: List[str] = list(getattr(args, "converters_paths", None) or [])
     converters.__path__ += converters_paths
     converters.import_converters()
 
