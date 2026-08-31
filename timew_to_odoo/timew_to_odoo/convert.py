@@ -42,6 +42,9 @@ class TimesheetLine(TypedDict, total=False):
     task: Union[str, int]
     name: str
     unit_amount: float
+    # Stable refs (``TimeInterval.ref``) of the intervals this line covers,
+    # *not* their volatile ``timew`` ``@id``s: the upload history keys on
+    # them to tell apart work already sent to Odoo from new work.
     _timew_ids: Set[int]
 
 
@@ -78,7 +81,7 @@ class SimpleConverter(EntryConverterBase):
             date=self.extract_date(entry),
             name=entry.annotation,
             unit_amount=entry.duration / 3600,
-            _timew_ids={entry.id},
+            _timew_ids={entry.ref},
         )
         return line
 

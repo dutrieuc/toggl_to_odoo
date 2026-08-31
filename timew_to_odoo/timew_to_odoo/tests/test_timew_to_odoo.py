@@ -17,12 +17,24 @@ from converters.odoo_common import extract_task
 from converters.owndb import converter2owndb
 from timew_to_odoo.timew_to_odoo import odoo_upload as upload_module
 from timew_to_odoo.timew_to_odoo.processing import fetch_and_process
-from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval
+from timew_to_odoo.timew_to_odoo.timewarrior import TimeInterval, parse_timestamp
 
 from .fakes import FakeOdooXmlRpc, FakeShelf
 
 FROM = datetime(2026, 8, 9, tzinfo=timezone.utc)
 TO = datetime(2026, 8, 9, 23, 59, 59, tzinfo=timezone.utc)
+
+
+def ref_for(start):
+    """The upload history reference of the interval starting at ``start``.
+
+    Mirrors :attr:`TimeInterval.ref`, so the expectations below are written
+    against the interval's start rather than its (positional) ``timew`` id.
+    """
+    return int(parse_timestamp(start).timestamp())
+
+
+DEFAULT_REF = ref_for("20260809T090000Z")
 
 
 def make_interval_row(**overrides):
@@ -149,8 +161,8 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
         self.assertEqual(
             self.history["_refs"],
             {
-                ("account.analytic.line", 1001): 1,
-                ("account.analytic.line", 1002): 2,
+                ("account.analytic.line", ref_for("20260809T090000Z")): 1,
+                ("account.analytic.line", ref_for("20260809T140000Z")): 2,
             },
         )
 
@@ -161,7 +173,43 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
         analytics = self.fake_odoo.records["account.analytic.line"]
         self.assertEqual(len(analytics), 1)
         self.assertEqual(
-            self.history["_refs"], {("account.analytic.line", 1000): 1}
+            self.history["_refs"], {("account.analytic.line", DEFAULT_REF): 1}
+        )
+
+    def test_upload_is_idempotent_when_timew_renumbers_intervals(self):
+        """Timewarrior ids are positional, not identities.
+
+        ``@1`` always designates the most recently tracked interval, so every
+        older interval is renumbered as soon as new time is tracked. An upload
+        run the next day therefore sees the very same work under a different
+        id, and must neither re-upload it nor mistake the new interval --
+        which inherited the old id -- for something already uploaded.
+        """
+        morning = make_interval_row(
+            id=1,
+            start="20260809T090000Z",
+            end="20260809T100000Z",
+            annotation="Fix accounting module",
+        )
+        _, lines = self.fetch_and_convert([morning])
+        self.upload(lines)
+        self.assertEqual(len(self.fake_odoo.records["account.analytic.line"]), 1)
+
+        # More time is tracked: the new interval becomes @1 and pushes the
+        # already uploaded one down to @2, exactly as ``timew export`` does.
+        afternoon = make_interval_row(
+            id=1,
+            start="20260809T140000Z",
+            end="20260809T143000Z",
+            annotation="Sync meeting",
+        )
+        _, lines = self.fetch_and_convert([dict(morning, id=2), afternoon])
+        self.upload(lines)
+
+        analytics = self.fake_odoo.records["account.analytic.line"]
+        self.assertEqual(
+            sorted(line["name"] for line in analytics.values()),
+            ["Fix accounting module", "Sync meeting"],
         )
 
     def test_upload_merges_matching_entries(self):
@@ -186,7 +234,10 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
         )
         self.assertEqual(len(lines), 1)
         self.assertEqual(lines[0]["unit_amount"], 1.25)
-        self.assertEqual(lines[0]["_timew_ids"], {2001, 2002})
+        self.assertEqual(
+            lines[0]["_timew_ids"],
+            {ref_for("20260809T080000Z"), ref_for("20260809T100000Z")},
+        )
 
         self.upload(lines)
         analytics = self.fake_odoo.records["account.analytic.line"]
@@ -195,8 +246,8 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
         self.assertEqual(
             self.history["_refs"],
             {
-                ("account.analytic.line", 2001): 1,
-                ("account.analytic.line", 2002): 1,
+                ("account.analytic.line", ref_for("20260809T080000Z")): 1,
+                ("account.analytic.line", ref_for("20260809T100000Z")): 1,
             },
         )
 
@@ -207,7 +258,7 @@ class TimewToOdooUploadTestCase(unittest.TestCase):
         _, lines = self.fetch_and_convert([])
         self.assertEqual(lines, [])
         self.assertEqual(
-            self.history["_refs"], {("account.analytic.line", 1000): 1}
+            self.history["_refs"], {("account.analytic.line", DEFAULT_REF): 1}
         )
 
     def test_fetch_filters_intervals_by_any_tag(self):
@@ -249,7 +300,7 @@ class OdooConverterTestCase(unittest.TestCase):
             "task": "Odoo-whatever",
             "name": "Fix accounting module",
             "unit_amount": 1.0,
-            "_timew_ids": {1000},
+            "_timew_ids": {DEFAULT_REF},
         }
         full.update(expected)
         self.assertEqual(line_dict, full)
@@ -302,7 +353,7 @@ class OdooConverterTestCase(unittest.TestCase):
                 "task": 56012,
                 "name": "Fix accounting module",
                 "unit_amount": 1.0,
-                "_timew_ids": {1000},
+                "_timew_ids": {DEFAULT_REF},
             },
         )
 
@@ -342,7 +393,7 @@ class OdooConverterTestCase(unittest.TestCase):
                 "task": 56012,
                 "name": "Fix accounting module",
                 "unit_amount": 1.0,
-                "_timew_ids": {1000},
+                "_timew_ids": {DEFAULT_REF},
             },
         )
 
@@ -357,7 +408,7 @@ class OdooConverterTestCase(unittest.TestCase):
                 "task": 56012,
                 "name": "Fix accounting module",
                 "unit_amount": 1.0,
-                "_timew_ids": {1000},
+                "_timew_ids": {DEFAULT_REF},
             },
         )
 
@@ -411,7 +462,7 @@ class OwndbConverterTestCase(unittest.TestCase):
                 "task": "Non-billable",
                 "name": "Fix accounting module",
                 "unit_amount": 1.0,
-                "_timew_ids": {1000},
+                "_timew_ids": {DEFAULT_REF},
             },
         )
 

@@ -82,21 +82,21 @@ class ChainedConverterTestCase(unittest.TestCase):
         class Default(SimpleConverter):
             ...
 
-        lines = chain.convert(
-            [
-                interval(1, start=DT0, end=DT0.replace(hour=10), annotation="same"),
-                interval(
-                    2,
-                    start=DT0.replace(hour=11),
-                    end=DT0.replace(hour=12),
-                    annotation="same",
-                ),
-            ],
-            merge=True,
-        )
+        intervals = [
+            interval(1, start=DT0, end=DT0.replace(hour=10), annotation="same"),
+            interval(
+                2,
+                start=DT0.replace(hour=11),
+                end=DT0.replace(hour=12),
+                annotation="same",
+            ),
+        ]
+        lines = chain.convert(intervals, merge=True)
         self.assertEqual(len(lines), 1)
         self.assertEqual(lines[0]["unit_amount"], 2.0)
-        self.assertEqual(lines[0]["_timew_ids"], {1, 2})
+        self.assertEqual(
+            lines[0]["_timew_ids"], {entry.ref for entry in intervals}
+        )
 
     def test_merge_splits_on_different_names(self):
         chain = ChainedConverter("test-merge-split")

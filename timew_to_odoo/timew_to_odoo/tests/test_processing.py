@@ -30,6 +30,19 @@ class SnapEntriesTestCase(unittest.TestCase):
         self.assertEqual(earlier.end, DT.replace(hour=9, minute=30))
         self.assertEqual(later.start, DT.replace(hour=9, minute=45))
 
+    def test_snapping_preserves_refs(self):
+        """Snapping shifts an interval's start, but not its upload identity.
+
+        The ref is what the upload history keys on: were it recomputed from
+        the snapped start, running with and without ``--snap`` would upload
+        the same work twice.
+        """
+        earlier = interval(1, 9, 0, 9, 30)
+        later = interval(2, 9, 31, 10, 0)
+        refs = [earlier.ref, later.ref]
+        snap_entries([earlier, later], 120)
+        self.assertEqual([earlier.ref, later.ref], refs)
+
     def test_handles_overlapping_entries(self):
         earlier = interval(1, 9, 0, 9, 30)
         later_start = DT.replace(hour=9, minute=29, second=30)

@@ -42,6 +42,21 @@ class TimeInterval:
         self.end: Optional[datetime] = end
         self.tags: List[str] = list(tags)
         self.annotation: str = annotation or ""
+        # Snapped afterwards by the processing step, hence captured now.
+        self._ref: int = int(start.timestamp())
+
+    @property
+    def ref(self) -> int:
+        """A stable identity for this interval, across ``timew export`` runs.
+
+        :attr:`id` cannot be used to recognize an interval: Timewarrior
+        numbers intervals by position from the most recent one (``@1``), so
+        every id shifts as soon as new time is tracked. The start timestamp
+        is Timewarrior's real key -- intervals never overlap and an interval
+        keeps its start for its whole life -- so it is what the upload
+        history records.
+        """
+        return self._ref
 
     @property
     def duration(self) -> float:

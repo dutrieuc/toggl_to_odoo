@@ -71,6 +71,21 @@ class DeserializeTestCase(unittest.TestCase):
         self.assertIsNone(interval.end)
         self.assertEqual(interval.annotation, "")
 
+    def test_ref_ignores_the_positional_id(self):
+        """``timew`` renumbers intervals, so the ref must not follow the id."""
+        row = {"id": 1, "start": "20260809T090000Z", "end": "20260809T100000Z"}
+        self.assertEqual(
+            deserialize_interval(row).ref,
+            deserialize_interval(dict(row, id=7)).ref,
+        )
+
+    def test_ref_tells_intervals_apart(self):
+        row = {"id": 1, "start": "20260809T090000Z", "end": "20260809T100000Z"}
+        other = dict(row, start="20260809T110000Z", end="20260809T120000Z")
+        self.assertNotEqual(
+            deserialize_interval(row).ref, deserialize_interval(other).ref
+        )
+
     def test_isofmt(self):
         self.assertEqual(isofmt(DT0), "2026-08-09T09:00:00+00:00")
 
