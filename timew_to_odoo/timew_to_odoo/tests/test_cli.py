@@ -9,6 +9,7 @@ namespace would re-register the converter chains and raise a name conflict.
 reused.
 """
 
+import io
 import unittest
 from datetime import datetime, timezone
 from unittest import mock
@@ -92,28 +93,32 @@ class CliTestCase(unittest.TestCase):
             )
         upload.assert_not_called()
 
-    def test_upload_mode(self):
+    def run_upload_main(self, argv, stdin="secret\n"):
+        """Run ``main()`` in upload mode with the API key piped in on stdin."""
         with (
             mock.patch(
                 "timew_to_odoo.timew_to_odoo.__main__.fetch_and_process", return_value=[INTERVAL]
             ),
             mock.patch("timew_to_odoo.timew_to_odoo.__main__.odoo_upload") as upload,
+            mock.patch("sys.stdin", io.StringIO(stdin)),
         ):
-            self.run_main(
-                [
-                    "timew_to_odoo",
-                    "upload",
-                    "timew2odoo",
-                    "https://odoo.example.com",
-                    "testdb",
-                    "-u",
-                    "admin",
-                    "-p",
-                    "secret",
-                    "history",
-                    "--dry-run",
-                ]
-            )
+            self.run_main(argv)
+        return upload
+
+    def test_upload_mode(self):
+        upload = self.run_upload_main(
+            [
+                "timew_to_odoo",
+                "upload",
+                "timew2odoo",
+                "https://odoo.example.com",
+                "testdb",
+                "-u",
+                "admin",
+                "history",
+                "--dry-run",
+            ]
+        )
         upload.assert_called_once()
         kwargs = upload.call_args.kwargs
         self.assertEqual(kwargs["url"], "https://odoo.example.com")
@@ -122,3 +127,35 @@ class CliTestCase(unittest.TestCase):
         self.assertEqual(kwargs["password"], "secret")
         self.assertEqual(kwargs["history_file"], "history")
         self.assertTrue(kwargs["dry_run"])
+
+    def test_upload_without_password_on_stdin_raises(self):
+        with self.assertRaises(AttributeError) as ctx:
+            self.run_upload_main(
+                [
+                    "timew_to_odoo",
+                    "upload",
+                    "timew2odoo",
+                    "https://odoo.example.com",
+                    "testdb",
+                    "-u",
+                    "admin",
+                    "history",
+                ],
+                stdin="",
+            )
+        self.assertIn("No password on stdin", str(ctx.exception))
+
+    def test_upload_rejects_a_password_in_the_url(self):
+        """A password in the url would be as exposed as one in an argument."""
+        with self.assertRaises(AttributeError) as ctx:
+            self.run_upload_main(
+                [
+                    "timew_to_odoo",
+                    "upload",
+                    "timew2odoo",
+                    "https://admin:secret@odoo.example.com",
+                    "testdb",
+                    "history",
+                ]
+            )
+        self.assertIn("exposed in the process table", str(ctx.exception))

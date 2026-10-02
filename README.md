@@ -38,6 +38,18 @@ To run the synchronization, run :
 python3 -m timew_to_odoo.timew_to_odoo upload timew2odoo https://www.odoo.com openerp history
 ```
 
+### Credentials
+
+The password or API key is only accepted on stdin, so that it can be piped
+straight out of a password manager without ever touching the disk or the
+process table:
+
+```sh
+secret-tool lookup www.odoo.com apikey |
+    timew_to_odoo upload -u you@odoo.com \
+        timew2odoo https://www.odoo.com openerp history
+```
+
 ## Testing
 
 The upload pipeline is tested end-to-end with mocks: the `timew export` output

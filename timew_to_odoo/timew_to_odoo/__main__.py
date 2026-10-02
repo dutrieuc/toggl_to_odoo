@@ -2,6 +2,7 @@ import argparse
 import getpass
 import logging
 import math
+import sys
 from typing import List, Mapping, MutableMapping, Union, Optional, Tuple, Sequence
 from urllib.parse import urlparse, ParseResult, urlunparse
 
@@ -47,6 +48,28 @@ def parse_cli_datetime(value: str, end_of_day: bool = False) -> datetime:
     return dt
 
 
+def read_password() -> str:
+    """
+    Read the odoo password or API key.
+
+    The secret is only ever accepted on stdin, piped in from a password
+    manager, or typed at an interactive prompt. It is deliberately not
+    settable from the command line: arguments are world-readable in the
+    process table for as long as the upload runs.
+
+    Only the first line of stdin is consumed, without its trailing newline.
+    """
+    if sys.stdin.isatty():
+        return getpass.getpass("Odoo DB password: ")
+    password: str = sys.stdin.readline().rstrip("\n")
+    if not password:
+        raise AttributeError(
+            "No password on stdin; pipe the password or API key in, e.g. "
+            "`secret-tool lookup www.odoo.com apikey | timew_to_odoo upload ...`"
+        )
+    return password
+
+
 def setup_logger(verbosity: int) -> None:
     log_formatter: logging.Formatter = logging.Formatter(
         fmt=LOG_FORMAT, datefmt=LOG_DATEFORMAT
@@ -64,24 +87,23 @@ def setup_logger(verbosity: int) -> None:
     logger.setLevel(levels[verbosity])
 
 
-def parse_odoo_credentials(
-    url: str, username: Optional[str], password: Optional[str]
-) -> Tuple[str, str, str]:
+def parse_odoo_credentials(url: str, username: Optional[str]) -> Tuple[str, str, str]:
     parsed: ParseResult = urlparse(url)
 
     if username and parsed.username and parsed.username != username:
         raise AttributeError("Passed two different usernames in url and arguments")
-    if not username and not parsed.username:
+    username = username or parsed.username
+    if not username:
+        if not sys.stdin.isatty():
+            raise AttributeError("No username given and stdin is not a terminal")
         username = input("Odoo DB username: ")
-    else:
-        username = username or parsed.username
 
-    if password and parsed.password and parsed.password != password:
-        raise AttributeError("Passed two different passwords in url and arguments")
-    if not password and not parsed.password:
-        password = getpass.getpass("Odoo DB password: ")
-    else:
-        password = password or parsed.password
+    if parsed.password:
+        raise AttributeError(
+            "Passwords embedded in the url are exposed in the process table; "
+            "pipe the password or API key on stdin instead"
+        )
+    password: str = read_password()
 
     assert username and password and parsed.hostname  # TODO: convert to exception?
 
@@ -198,14 +220,6 @@ def main():
         help="Username for the odoo database",
     )
     upload_parser.add_argument(
-        "-p",
-        "--pass",
-        "--password",
-        "--apikey",
-        dest="password",
-        help="Password or API key for the odoo database",
-    )
-    upload_parser.add_argument(
         "history",
         help="Store upload history in the specified file for incremental uploads",
     )
@@ -259,7 +273,7 @@ def main():
     odoo_url: Optional[str] = None
     if args.mode == "upload":
         odoo_url, odoo_username, odoo_password = parse_odoo_credentials(
-            url=args.url, username=args.username, password=args.password
+            url=args.url, username=args.username
         )
 
     logger.debug("Fetching time intervals...")
